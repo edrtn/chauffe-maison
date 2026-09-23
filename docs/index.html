@@ -422,7 +422,7 @@ initSchedule();
 // STATUS
 // =========================================================================
 function refreshStatus() {
-  if (!CFG.workerUrl || !CFG.apiKey) {
+  if (!apiKey) {
     ["st-temp","st-relay","st-power","st-target"].forEach(function(id) {
       document.getElementById(id).textContent = "Config!";
       document.getElementById(id).className = "value err";
