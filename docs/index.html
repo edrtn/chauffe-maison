@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Chauffe Maison</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -10,301 +10,764 @@
   --bg:#1a1a2e;--surface:#16213e;--surface2:#0f3460;
   --accent:#e94560;--accent2:#ff6b6b;--text:#eee;--text2:#aab;
   --on:#e94560;--off:#16213e;--grid-border:#0f3460;
-  --success:#2ecc71;--warn:#f39c12;
+  --success:#2ecc71;--warn:#f39c12;--danger:#e74c3c;
 }
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-  background:var(--bg);color:var(--text);min-height:100vh;padding:12px}
-h1{font-size:1.3rem;text-align:center;padding:8px 0;color:var(--accent)}
-.card{background:var(--surface);border-radius:10px;padding:14px;margin:10px 0}
-.card h2{font-size:1rem;margin-bottom:10px;color:var(--accent2)}
+  background:var(--bg);color:var(--text);min-height:100vh;
+  min-height:-webkit-fill-available;padding:0}
+a{color:var(--accent2)}
 
-/* Status bar */
-.status-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
-.status-item{text-align:center;padding:8px;background:var(--surface2);border-radius:8px}
-.status-item .label{font-size:.7rem;color:var(--text2);text-transform:uppercase}
-.status-item .value{font-size:1.3rem;font-weight:700;margin-top:2px}
+/* ===== LOGIN ===== */
+#loginScreen{display:flex;align-items:center;justify-content:center;
+  min-height:100vh;min-height:-webkit-fill-available;padding:20px}
+.login-box{background:var(--surface);border-radius:16px;padding:32px 24px;
+  width:100%;max-width:360px;text-align:center}
+.login-box h1{font-size:1.5rem;color:var(--accent);margin-bottom:4px}
+.login-box p{font-size:.8rem;color:var(--text2);margin-bottom:24px}
+.login-box input{width:100%;padding:12px 14px;margin-bottom:12px;border-radius:8px;
+  border:1px solid var(--grid-border);background:var(--surface2);color:var(--text);
+  font-size:1rem;outline:none;transition:border .2s}
+.login-box input:focus{border-color:var(--accent)}
+.login-box .btn{width:100%;padding:12px;font-size:1rem;margin-top:4px}
+.login-error{color:var(--danger);font-size:.8rem;margin-top:8px;min-height:1.2em}
+
+/* ===== APP LAYOUT ===== */
+#appScreen{display:none;padding:12px;max-width:900px;margin:0 auto;
+  padding-bottom:calc(60px + env(safe-area-inset-bottom))}
+.app-header{display:flex;align-items:center;justify-content:space-between;
+  padding:8px 0;margin-bottom:4px}
+.app-header h1{font-size:1.2rem;color:var(--accent);margin:0}
+.app-header .header-actions{display:flex;gap:8px;align-items:center}
+.mode-badge{font-size:.65rem;padding:3px 8px;border-radius:10px;font-weight:700;text-transform:uppercase}
+.mode-badge.cloud{background:#1a365d;color:#63b3ed}
+.mode-badge.local{background:#1a3d2e;color:var(--success)}
+.icon-btn{background:none;border:none;color:var(--text2);font-size:1.2rem;
+  cursor:pointer;padding:6px;border-radius:6px;transition:background .2s;line-height:1}
+.icon-btn:hover{background:var(--surface2)}
+
+/* ===== CARDS ===== */
+.card{background:var(--surface);border-radius:12px;padding:16px;margin:10px 0}
+.card h2{font-size:.9rem;margin-bottom:10px;color:var(--accent2);
+  display:flex;align-items:center;gap:8px}
+.card h2 .badge{font-size:.6rem;padding:2px 6px;border-radius:8px;
+  background:var(--surface2);color:var(--text2);font-weight:400}
+
+/* ===== STATUS ===== */
+.status-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.status-item{text-align:center;padding:10px 8px;background:var(--surface2);border-radius:10px}
+.status-item .label{font-size:.65rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px}
+.status-item .value{font-size:1.4rem;font-weight:700;margin-top:4px}
 .status-item .value.on{color:var(--success)}
 .status-item .value.off{color:var(--text2)}
+.status-item .value.err{color:var(--danger)}
+.status-item .sub{font-size:.65rem;color:var(--text2);margin-top:2px}
 
-/* IP bar */
-.ip-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.ip-bar input{flex:1;min-width:140px;padding:8px;border-radius:6px;border:1px solid var(--grid-border);
-  background:var(--surface2);color:var(--text);font-size:.9rem}
-.ip-bar button{white-space:nowrap}
-
-/* Schedule grid */
-.grid-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
-table.schedule{border-collapse:collapse;width:100%;min-width:600px}
-table.schedule th,table.schedule td{border:1px solid var(--grid-border);text-align:center;
-  padding:0;font-size:.6rem;user-select:none;-webkit-user-select:none}
-table.schedule th{padding:4px 2px;background:var(--surface2);color:var(--text2);
-  position:sticky;top:0;z-index:1}
-table.schedule th.day-label{width:40px;min-width:40px;position:sticky;left:0;z-index:2;
-  background:var(--surface2)}
-table.schedule td.day-label{width:40px;min-width:40px;font-weight:700;font-size:.75rem;
-  background:var(--surface2);position:sticky;left:0;z-index:1}
-table.schedule td.slot{width:14px;min-width:14px;height:28px;cursor:pointer;transition:background .1s}
-table.schedule td.slot.active{background:var(--on)}
-table.schedule td.slot:not(.active){background:var(--off)}
-table.schedule td.slot:hover{opacity:.7}
-.hour-markers{display:flex;min-width:600px;padding-left:40px}
-.hour-markers span{flex:1;text-align:left;font-size:.55rem;color:var(--text2)}
-
-/* Temp controls */
-.temp-row{display:flex;align-items:center;gap:12px;margin:8px 0;flex-wrap:wrap}
-.temp-row label{font-size:.85rem;color:var(--text2);min-width:80px}
-.temp-row input[type=range]{flex:1;min-width:100px}
-.temp-row .temp-val{font-size:1.1rem;font-weight:700;min-width:50px;text-align:right}
+/* ===== CONTROLS ===== */
+.control-row{display:flex;align-items:center;justify-content:space-between;
+  padding:10px 0;border-bottom:1px solid var(--surface2)}
+.control-row:last-child{border-bottom:none}
+.control-row .label{font-size:.9rem}
+.control-row .sublabel{font-size:.7rem;color:var(--text2)}
 
 /* Toggle */
-.toggle-row{display:flex;align-items:center;gap:12px;margin:8px 0}
-.toggle{position:relative;width:50px;height:26px;cursor:pointer}
+.toggle{position:relative;width:52px;height:28px;cursor:pointer;flex-shrink:0}
 .toggle input{display:none}
-.toggle .slider{position:absolute;inset:0;background:var(--surface2);border-radius:13px;transition:.3s}
+.toggle .slider{position:absolute;inset:0;background:var(--surface2);border-radius:14px;transition:.3s}
 .toggle input:checked+.slider{background:var(--success)}
-.toggle .slider::before{content:"";position:absolute;width:20px;height:20px;left:3px;bottom:3px;
+.toggle .slider::before{content:"";position:absolute;width:22px;height:22px;left:3px;bottom:3px;
   background:#fff;border-radius:50%;transition:.3s}
 .toggle input:checked+.slider::before{transform:translateX(24px)}
 
-/* Buttons */
-button,.btn{padding:8px 16px;border:none;border-radius:6px;font-size:.85rem;font-weight:600;
-  cursor:pointer;transition:background .2s}
+/* Temp controls */
+.temp-row{display:flex;align-items:center;gap:10px;padding:10px 0;
+  border-bottom:1px solid var(--surface2)}
+.temp-row:last-child{border-bottom:none}
+.temp-row label{font-size:.85rem;color:var(--text2);min-width:70px}
+.temp-row input[type=range]{flex:1;min-width:80px;accent-color:var(--accent)}
+.temp-row .temp-val{font-size:1rem;font-weight:700;min-width:55px;text-align:right}
+
+/* ===== SCHEDULE GRID ===== */
+.grid-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px;margin:0 -4px}
+table.schedule{border-collapse:collapse;width:100%;min-width:560px}
+table.schedule th,table.schedule td{border:1px solid var(--grid-border);text-align:center;
+  padding:0;font-size:.55rem;user-select:none;-webkit-user-select:none}
+table.schedule th{padding:3px 1px;background:var(--surface2);color:var(--text2);
+  position:sticky;top:0;z-index:1}
+table.schedule th.day-label{width:36px;min-width:36px;position:sticky;left:0;z-index:2;
+  background:var(--surface2)}
+table.schedule td.day-label{width:36px;min-width:36px;font-weight:700;font-size:.7rem;
+  background:var(--surface2);position:sticky;left:0;z-index:1}
+table.schedule td.slot{width:12px;min-width:12px;height:32px;cursor:pointer;
+  transition:background .1s;touch-action:none}
+table.schedule td.slot.active{background:var(--on)}
+table.schedule td.slot:not(.active){background:var(--off)}
+table.schedule td.slot:hover{opacity:.7}
+
+/* ===== BUTTONS ===== */
+button,.btn{padding:10px 18px;border:none;border-radius:8px;font-size:.85rem;font-weight:600;
+  cursor:pointer;transition:background .2s,opacity .2s;touch-action:manipulation}
 .btn-primary{background:var(--accent);color:#fff}
 .btn-primary:hover{background:var(--accent2)}
+.btn-primary:active{opacity:.8}
 .btn-secondary{background:var(--surface2);color:var(--text)}
 .btn-secondary:hover{background:var(--grid-border)}
 .btn-success{background:var(--success);color:#fff}
 .btn-success:hover{background:#27ae60}
-.btn-group{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-sm{padding:6px 12px;font-size:.75rem}
+.btn-group{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
 
-/* Log */
-#log{max-height:120px;overflow-y:auto;font-family:monospace;font-size:.75rem;
-  background:var(--surface2);border-radius:6px;padding:8px;margin-top:8px;color:var(--text2)}
+/* ===== LOG ===== */
+#log{max-height:140px;overflow-y:auto;font-family:"SF Mono",Monaco,Consolas,monospace;
+  font-size:.7rem;background:var(--surface2);border-radius:8px;padding:10px;
+  margin-top:10px;color:var(--text2);line-height:1.5}
 #log div{padding:1px 0}
 
-/* HTTPS warning */
-.https-warn{background:#7f1d1d;border:1px solid var(--accent);border-radius:10px;
-  padding:14px;margin:10px 0;font-size:.85rem;line-height:1.5}
-.https-warn strong{color:var(--accent2)}
-.https-warn code{background:var(--surface2);padding:2px 6px;border-radius:4px;font-size:.8rem}
-.https-warn .btn{margin-top:8px}
+/* ===== SETTINGS PANEL ===== */
+#settingsPanel{display:none;position:fixed;inset:0;background:var(--bg);
+  z-index:100;overflow-y:auto;padding:12px;padding-bottom:calc(20px + env(safe-area-inset-bottom))}
+.settings-header{display:flex;align-items:center;justify-content:space-between;
+  padding:8px 0;margin-bottom:8px}
+.settings-header h1{font-size:1.2rem;color:var(--accent)}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:.8rem;color:var(--text2);margin-bottom:4px}
+.form-group input,.form-group select{width:100%;padding:10px 12px;border-radius:8px;
+  border:1px solid var(--grid-border);background:var(--surface2);color:var(--text);
+  font-size:.9rem;outline:none}
+.form-group input:focus{border-color:var(--accent)}
+.form-group .hint{font-size:.7rem;color:var(--text2);margin-top:4px}
+.form-section{margin:20px 0 10px;font-size:.8rem;color:var(--accent2);
+  text-transform:uppercase;letter-spacing:1px;padding-bottom:6px;
+  border-bottom:1px solid var(--surface2)}
 
-/* Responsive */
-@media(max-width:480px){
-  .status-grid{grid-template-columns:repeat(2,1fr)}
-  table.schedule td.slot{height:24px}
+/* ===== BOTTOM NAV ===== */
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;
+  background:var(--surface);border-top:1px solid var(--surface2);
+  padding:6px 0 calc(6px + env(safe-area-inset-bottom));z-index:50;
+  display:flex;justify-content:space-around}
+.bottom-nav button{background:none;border:none;color:var(--text2);
+  font-size:.6rem;padding:4px 12px;cursor:pointer;display:flex;
+  flex-direction:column;align-items:center;gap:2px;transition:color .2s}
+.bottom-nav button .nav-icon{font-size:1.2rem}
+.bottom-nav button.active{color:var(--accent)}
+
+/* ===== TAB SECTIONS ===== */
+.tab-section{display:none}
+.tab-section.active{display:block}
+
+/* ===== RESPONSIVE ===== */
+@media(min-width:600px){
+  .status-grid{grid-template-columns:repeat(4,1fr)}
+  table.schedule td.slot{height:28px}
 }
+@media(min-width:768px){
+  #appScreen{padding:20px}
+  .card{padding:20px}
+  .bottom-nav{display:none!important}
+  .desktop-tabs{display:flex!important}
+}
+.desktop-tabs{display:none;gap:0;margin-bottom:4px;border-bottom:2px solid var(--surface2)}
+.desktop-tabs button{background:none;border:none;color:var(--text2);padding:10px 20px;
+  font-size:.85rem;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;
+  transition:color .2s,border-color .2s}
+.desktop-tabs button.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* ===== SPINNER ===== */
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--surface2);
+  border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
 
-<h1>Chauffe Maison</h1>
-
-<!-- HTTPS Warning -->
-<div class="https-warn" id="httpsWarn" style="display:none">
-  <strong>Connexion HTTPS detectee</strong><br>
-  Les navigateurs bloquent les appels HTTP vers le reseau local depuis une page HTTPS.
-  Pour controler le Shelly, ouvre cette page en local :
-  <br><br>
-  <button class="btn btn-primary" onclick="downloadPage()">Telecharger la page</button>
-  <span style="color:var(--text2);margin-left:8px">puis ouvre le fichier telechage dans ton navigateur</span>
-</div>
-
-<!-- IP Config -->
-<div class="card">
-  <div class="ip-bar">
-    <label style="font-size:.85rem;color:var(--text2)">IP Shelly Pro 1PM :</label>
-    <input type="text" id="ipInput" placeholder="192.168.68.104">
-    <button class="btn btn-secondary" onclick="saveIP()">OK</button>
-    <button class="btn btn-secondary" onclick="refreshStatus()">Rafraichir</button>
+<!-- ===== LOGIN SCREEN ===== -->
+<div id="loginScreen">
+  <div class="login-box">
+    <h1>Chauffe Maison</h1>
+    <p>Systeme de pilotage chauffage</p>
+    <input type="text" id="loginUser" placeholder="Identifiant" autocomplete="username" autofocus>
+    <input type="password" id="loginPass" placeholder="Mot de passe" autocomplete="current-password">
+    <button class="btn btn-primary" onclick="doLogin()">Connexion</button>
+    <div class="login-error" id="loginError"></div>
   </div>
 </div>
 
-<!-- Status -->
-<div class="card">
-  <h2>Statut</h2>
-  <div class="status-grid">
-    <div class="status-item">
-      <div class="label">Temperature</div>
-      <div class="value" id="st-temp">--</div>
+<!-- ===== APP SCREEN ===== -->
+<div id="appScreen">
+  <!-- Header -->
+  <div class="app-header">
+    <h1>Chauffe Maison</h1>
+    <div class="header-actions">
+      <span class="mode-badge" id="modeBadge">--</span>
+      <button class="icon-btn" onclick="openSettings()" title="Parametres">&#9881;</button>
+      <button class="icon-btn" onclick="doLogout()" title="Deconnexion">&#10151;</button>
     </div>
-    <div class="status-item">
-      <div class="label">Relais</div>
-      <div class="value" id="st-relay">--</div>
+  </div>
+
+  <!-- Desktop tabs -->
+  <div class="desktop-tabs" id="desktopTabs">
+    <button class="active" onclick="switchTab('status')">Statut</button>
+    <button onclick="switchTab('schedule')">Horaires</button>
+    <button onclick="switchTab('deploy')">Deploiement</button>
+  </div>
+
+  <!-- TAB: Status + Controls -->
+  <div class="tab-section active" id="tab-status">
+    <div class="card">
+      <h2>Statut <span class="spinner" id="statusSpinner" style="display:none"></span></h2>
+      <div class="status-grid">
+        <div class="status-item">
+          <div class="label">Temperature</div>
+          <div class="value" id="st-temp">--</div>
+          <div class="sub" id="st-temp-time"></div>
+        </div>
+        <div class="status-item">
+          <div class="label">Relais</div>
+          <div class="value" id="st-relay">--</div>
+        </div>
+        <div class="status-item">
+          <div class="label">Puissance</div>
+          <div class="value" id="st-power">--</div>
+        </div>
+        <div class="status-item">
+          <div class="label">Systeme</div>
+          <div class="value" id="st-enabled">--</div>
+        </div>
+      </div>
+      <div class="btn-group" style="justify-content:center">
+        <button class="btn btn-secondary btn-sm" onclick="refreshStatus()">Rafraichir</button>
+      </div>
     </div>
-    <div class="status-item">
-      <div class="label">Puissance</div>
-      <div class="value" id="st-power">--</div>
+
+    <div class="card">
+      <h2>Controles</h2>
+      <div class="control-row">
+        <div>
+          <div class="label">Chauffage actif</div>
+          <div class="sublabel">Active/desactive le thermostat</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="enableToggle" checked onchange="toggleEnabled()">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="control-row" id="relayControlRow">
+        <div>
+          <div class="label">Relais manuel</div>
+          <div class="sublabel">Forcer ON/OFF (le script peut reprendre la main)</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="relayToggle" onchange="toggleRelay()">
+          <span class="slider"></span>
+        </label>
+      </div>
     </div>
-    <div class="status-item">
-      <div class="label">Systeme</div>
-      <div class="value" id="st-enabled">--</div>
+
+    <div class="card">
+      <h2>Temperature <span class="badge" id="tempBadge">local</span></h2>
+      <div class="temp-row">
+        <label>Cible</label>
+        <input type="range" id="tempTarget" min="5" max="30" step="0.5" value="18">
+        <span class="temp-val" id="tempTargetVal">18 °C</span>
+      </div>
+      <div class="temp-row">
+        <label>Hysteresis</label>
+        <input type="range" id="tempHyst" min="0.5" max="3" step="0.5" value="1">
+        <span class="temp-val" id="tempHystVal">1 °C</span>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary btn-sm" onclick="applyTempSettings()">Appliquer</button>
+      </div>
     </div>
+  </div>
+
+  <!-- TAB: Schedule -->
+  <div class="tab-section" id="tab-schedule">
+    <div class="card">
+      <h2>Plages horaires <span class="badge">local uniquement</span></h2>
+      <div class="grid-wrap" id="gridWrap"></div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="applyConfig()">Appliquer</button>
+        <button class="btn btn-secondary" onclick="loadConfig()">Recharger</button>
+        <button class="btn btn-secondary" onclick="clearAll()">Tout effacer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: Deploy -->
+  <div class="tab-section" id="tab-deploy">
+    <div class="card">
+      <h2>Deploiement <span class="badge">local uniquement</span></h2>
+      <div class="btn-group">
+        <button class="btn btn-success" onclick="deployScript()">Deployer script thermostat</button>
+        <button class="btn btn-secondary" onclick="configureWebhook()">Configurer webhook H&T</button>
+        <button class="btn btn-secondary" onclick="checkScript()">Verifier script</button>
+      </div>
+      <div id="log"></div>
+    </div>
+  </div>
+
+  <!-- Bottom nav (mobile) -->
+  <div class="bottom-nav" id="bottomNav">
+    <button class="active" onclick="switchTab('status')">
+      <span class="nav-icon">&#9632;</span>Statut
+    </button>
+    <button onclick="switchTab('schedule')">
+      <span class="nav-icon">&#9776;</span>Horaires
+    </button>
+    <button onclick="switchTab('deploy')">
+      <span class="nav-icon">&#9881;</span>Deploy
+    </button>
   </div>
 </div>
 
-<!-- Enable toggle + Temp settings -->
-<div class="card">
-  <h2>Reglages</h2>
-  <div class="toggle-row">
-    <label class="toggle">
-      <input type="checkbox" id="enableToggle" checked>
-      <span class="slider"></span>
-    </label>
-    <span style="font-size:.9rem">Chauffage actif</span>
+<!-- ===== SETTINGS PANEL ===== -->
+<div id="settingsPanel">
+  <div class="settings-header">
+    <h1>Parametres</h1>
+    <button class="icon-btn" onclick="closeSettings()" style="font-size:1.5rem">&times;</button>
   </div>
-  <div class="temp-row">
-    <label>Cible</label>
-    <input type="range" id="tempTarget" min="5" max="30" step="0.5" value="18">
-    <span class="temp-val" id="tempTargetVal">18 °C</span>
-  </div>
-  <div class="temp-row">
-    <label>Hysteresis</label>
-    <input type="range" id="tempHyst" min="0.5" max="3" step="0.5" value="1">
-    <span class="temp-val" id="tempHystVal">1 °C</span>
-  </div>
-</div>
 
-<!-- Schedule -->
-<div class="card">
-  <h2>Plages horaires</h2>
-  <div class="grid-wrap" id="gridWrap"></div>
+  <div class="form-section">Connexion Cloud (acces distant)</div>
+  <div class="card">
+    <div class="form-group">
+      <label>Serveur Shelly Cloud</label>
+      <input type="text" id="cfgCloudServer" placeholder="shelly-42-eu.shelly.cloud">
+      <div class="hint">Visible dans l'app Shelly : Parametres utilisateur > Authorization Cloud Key</div>
+    </div>
+    <div class="form-group">
+      <label>Auth Key</label>
+      <input type="password" id="cfgAuthKey" placeholder="Votre cle d'autorisation cloud">
+    </div>
+    <div class="form-group">
+      <label>Device ID - Pro 1PM</label>
+      <input type="text" id="cfgDevicePro" placeholder="ecda3bc59ec8">
+      <div class="hint">MAC du Shelly Pro 1PM (visible dans Infos appareil)</div>
+    </div>
+    <div class="form-group">
+      <label>Device ID - H&T</label>
+      <input type="text" id="cfgDeviceHT" placeholder="">
+      <div class="hint">MAC du Shelly Plus H&T (optionnel)</div>
+    </div>
+  </div>
+
+  <div class="form-section">Connexion locale (reseau WiFi maison)</div>
+  <div class="card">
+    <div class="form-group">
+      <label>IP Shelly Pro 1PM</label>
+      <input type="text" id="cfgLocalIP" placeholder="192.168.68.104">
+    </div>
+    <div class="form-group">
+      <label>IP Shelly H&T</label>
+      <input type="text" id="cfgLocalHTIP" placeholder="192.168.68.108">
+    </div>
+  </div>
+
+  <div class="form-section">Mode de connexion</div>
+  <div class="card">
+    <div class="form-group">
+      <label>Mode</label>
+      <select id="cfgMode">
+        <option value="auto">Auto-detection</option>
+        <option value="cloud">Cloud uniquement</option>
+        <option value="local">Local uniquement</option>
+      </select>
+      <div class="hint">Auto : tente le local d'abord, bascule sur le cloud si indisponible</div>
+    </div>
+  </div>
+
   <div class="btn-group">
-    <button class="btn btn-primary" onclick="applyConfig()">Appliquer</button>
-    <button class="btn btn-secondary" onclick="loadConfig()">Recharger</button>
-    <button class="btn btn-secondary" onclick="clearAll()">Tout effacer</button>
+    <button class="btn btn-primary" onclick="saveSettings()">Sauvegarder</button>
+    <button class="btn btn-secondary" onclick="closeSettings()">Annuler</button>
   </div>
-</div>
-
-<!-- Deploy -->
-<div class="card">
-  <h2>Deploiement</h2>
-  <div class="btn-group">
-    <button class="btn btn-success" onclick="deployScript()">Deployer script thermostat</button>
-    <button class="btn btn-secondary" onclick="configureWebhook()">Configurer webhook H&T</button>
-    <button class="btn btn-secondary" onclick="checkScript()">Verifier script</button>
-  </div>
-  <div id="log"></div>
 </div>
 
 <script>
-// === Config ===
-var DAYS = ["lun","mar","mer","jeu","ven","sam","dim"];
-var DAY_LABELS = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
-var SLOTS = 48; // 30-min slots
-var HT_IP = "192.168.68.108";
+// =========================================================================
+// AUTH
+// =========================================================================
+var AUTH_HASH = "1da4eb7796c0f4950ab80e1897d36eeedb71bc47f86b5a944a846ed2de48fd06";
 
-// Schedule state: 7 days x 48 slots
-var schedule = [];
-for (var d = 0; d < 7; d++) {
-  schedule[d] = [];
-  for (var s = 0; s < SLOTS; s++) schedule[d][s] = false;
+function sha256(str) {
+  var buf = new TextEncoder().encode(str);
+  return crypto.subtle.digest("SHA-256", buf).then(function(h) {
+    return Array.from(new Uint8Array(h)).map(function(b) {
+      return b.toString(16).padStart(2, "0");
+    }).join("");
+  });
 }
 
-// Drag state
-var isDragging = false;
-var dragValue = false;
-
-function getIP() {
-  return document.getElementById("ipInput").value.trim() || "192.168.68.104";
+function doLogin() {
+  var user = document.getElementById("loginUser").value.trim();
+  var pass = document.getElementById("loginPass").value;
+  if (!user || !pass) {
+    document.getElementById("loginError").textContent = "Remplis les deux champs";
+    return;
+  }
+  sha256(user + ":" + pass).then(function(hash) {
+    if (hash === AUTH_HASH) {
+      sessionStorage.setItem("chauffe_auth", "1");
+      showApp();
+    } else {
+      document.getElementById("loginError").textContent = "Identifiants incorrects";
+      document.getElementById("loginPass").value = "";
+    }
+  });
 }
 
-function saveIP() {
-  localStorage.setItem("chauffe_ip", getIP());
-  log("IP sauvegardee : " + getIP());
+function doLogout() {
+  sessionStorage.removeItem("chauffe_auth");
+  document.getElementById("appScreen").style.display = "none";
+  document.getElementById("loginScreen").style.display = "flex";
+  document.getElementById("loginPass").value = "";
+  document.getElementById("loginError").textContent = "";
+}
+
+function checkAuth() {
+  if (sessionStorage.getItem("chauffe_auth") === "1") {
+    showApp();
+  }
+}
+
+// Enter key on login
+document.getElementById("loginPass").addEventListener("keydown", function(e) {
+  if (e.key === "Enter") doLogin();
+});
+document.getElementById("loginUser").addEventListener("keydown", function(e) {
+  if (e.key === "Enter") document.getElementById("loginPass").focus();
+});
+
+// =========================================================================
+// CONFIG / SETTINGS
+// =========================================================================
+var CFG = {
+  cloudServer: "", authKey: "", devicePro: "", deviceHT: "",
+  localIP: "192.168.68.104", localHTIP: "192.168.68.108", mode: "auto"
+};
+var currentMode = "cloud"; // "cloud" or "local"
+
+function loadSettings() {
+  try {
+    var s = localStorage.getItem("chauffe_cfg");
+    if (s) {
+      var parsed = JSON.parse(s);
+      for (var k in parsed) { if (CFG.hasOwnProperty(k)) CFG[k] = parsed[k]; }
+    }
+  } catch(e) {}
+}
+
+function saveSettings() {
+  CFG.cloudServer = document.getElementById("cfgCloudServer").value.trim();
+  CFG.authKey = document.getElementById("cfgAuthKey").value.trim();
+  CFG.devicePro = document.getElementById("cfgDevicePro").value.trim().toLowerCase();
+  CFG.deviceHT = document.getElementById("cfgDeviceHT").value.trim().toLowerCase();
+  CFG.localIP = document.getElementById("cfgLocalIP").value.trim() || "192.168.68.104";
+  CFG.localHTIP = document.getElementById("cfgLocalHTIP").value.trim() || "192.168.68.108";
+  CFG.mode = document.getElementById("cfgMode").value;
+  localStorage.setItem("chauffe_cfg", JSON.stringify(CFG));
+  closeSettings();
+  detectMode();
   refreshStatus();
 }
 
-function log(msg) {
-  var el = document.getElementById("log");
-  var line = document.createElement("div");
-  var t = new Date();
-  line.textContent = t.getHours().toString().padStart(2,"0") + ":" +
-    t.getMinutes().toString().padStart(2,"0") + ":" +
-    t.getSeconds().toString().padStart(2,"0") + " " + msg;
-  el.appendChild(line);
-  el.scrollTop = el.scrollHeight;
+function openSettings() {
+  document.getElementById("cfgCloudServer").value = CFG.cloudServer;
+  document.getElementById("cfgAuthKey").value = CFG.authKey;
+  document.getElementById("cfgDevicePro").value = CFG.devicePro;
+  document.getElementById("cfgDeviceHT").value = CFG.deviceHT;
+  document.getElementById("cfgLocalIP").value = CFG.localIP;
+  document.getElementById("cfgLocalHTIP").value = CFG.localHTIP;
+  document.getElementById("cfgMode").value = CFG.mode;
+  document.getElementById("settingsPanel").style.display = "block";
 }
 
-// === RPC helper ===
-function rpc(method, params, usePost) {
-  var url = "http://" + getIP() + "/rpc/" + method;
-  var opts = {};
-  if (usePost && params) {
-    opts.method = "POST";
-    opts.headers = { "Content-Type": "application/json" };
-    opts.body = JSON.stringify(params);
-  } else if (params) {
-    var qs = Object.keys(params).map(function(k) {
-      return encodeURIComponent(k) + "=" + encodeURIComponent(params[k]);
-    }).join("&");
-    url += "?" + qs;
+function closeSettings() {
+  document.getElementById("settingsPanel").style.display = "none";
+}
+
+// =========================================================================
+// MODE DETECTION
+// =========================================================================
+function detectMode() {
+  if (CFG.mode === "cloud") {
+    setMode("cloud");
+    return;
   }
+  if (CFG.mode === "local") {
+    setMode("local");
+    return;
+  }
+  // Auto: try local first
+  if (location.protocol === "https:") {
+    // HTTPS can't reach local HTTP
+    setMode("cloud");
+    return;
+  }
+  // Try local ping
+  var ctrl = new AbortController();
+  var timer = setTimeout(function() { ctrl.abort(); }, 3000);
+  fetch("http://" + CFG.localIP + "/rpc/Shelly.GetDeviceInfo", { signal: ctrl.signal })
+    .then(function(r) { clearTimeout(timer); return r.json(); })
+    .then(function() { setMode("local"); })
+    .catch(function() { clearTimeout(timer); setMode("cloud"); });
+}
+
+function setMode(m) {
+  currentMode = m;
+  var badge = document.getElementById("modeBadge");
+  badge.textContent = m === "cloud" ? "Cloud" : "Local";
+  badge.className = "mode-badge " + m;
+
+  // Disable local-only features in cloud mode
+  var localBadges = document.querySelectorAll(".badge");
+  localBadges.forEach(function(b) {
+    if (b.textContent === "local uniquement" || b.textContent === "local") {
+      b.style.display = m === "cloud" ? "inline" : "none";
+    }
+  });
+}
+
+// =========================================================================
+// RPC HELPERS
+// =========================================================================
+function rpcLocal(method, params) {
+  var url = "http://" + CFG.localIP + "/rpc/" + method;
+  var opts = { method: "POST", headers: { "Content-Type": "application/json" } };
+  if (params) opts.body = JSON.stringify(params);
+  else opts.body = "{}";
   return fetch(url, opts).then(function(r) { return r.json(); });
 }
 
-function rpcTo(ip, method, params, usePost) {
+function rpcLocalTo(ip, method, params) {
   var url = "http://" + ip + "/rpc/" + method;
-  var opts = {};
-  if (usePost && params) {
-    opts.method = "POST";
-    opts.headers = { "Content-Type": "application/json" };
-    opts.body = JSON.stringify(params);
-  } else if (params) {
-    var qs = Object.keys(params).map(function(k) {
-      return encodeURIComponent(k) + "=" + encodeURIComponent(params[k]);
-    }).join("&");
-    url += "?" + qs;
-  }
+  var opts = { method: "POST", headers: { "Content-Type": "application/json" } };
+  if (params) opts.body = JSON.stringify(params);
+  else opts.body = "{}";
   return fetch(url, opts).then(function(r) { return r.json(); });
 }
 
-// === Status ===
+function cloudPost(endpoint, body) {
+  var url = "https://" + CFG.cloudServer + "/" + endpoint;
+  return fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: body
+  }).then(function(r) { return r.json(); });
+}
+
+function cloudV2(endpoint, body) {
+  var url = "https://" + CFG.cloudServer + "/v2/" + endpoint;
+  body.auth_key = CFG.authKey;
+  return fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  }).then(function(r) { return r.json(); });
+}
+
+// =========================================================================
+// STATUS
+// =========================================================================
+var statusTimer = null;
+
 function refreshStatus() {
-  // Get relay status
-  rpc("Switch.GetStatus", { id: 0 }).then(function(data) {
-    var relayEl = document.getElementById("st-relay");
-    relayEl.textContent = data.output ? "ON" : "OFF";
-    relayEl.className = "value " + (data.output ? "on" : "off");
+  var spinner = document.getElementById("statusSpinner");
+  spinner.style.display = "inline-block";
+
+  if (currentMode === "local") {
+    refreshStatusLocal().finally(function() { spinner.style.display = "none"; });
+  } else {
+    refreshStatusCloud().finally(function() { spinner.style.display = "none"; });
+  }
+}
+
+function refreshStatusLocal() {
+  var p1 = rpcLocal("Switch.GetStatus", { id: 0 }).then(function(data) {
+    setRelayUI(data.output);
     document.getElementById("st-power").textContent =
-      (data.apower !== undefined ? data.apower.toFixed(0) + " W" : "-- W");
+      data.apower !== undefined ? data.apower.toFixed(0) + " W" : "-- W";
   }).catch(function() {
     document.getElementById("st-relay").textContent = "ERR";
+    document.getElementById("st-relay").className = "value err";
     document.getElementById("st-power").textContent = "-- W";
   });
 
-  // Get temp from KVS
-  rpc("KVS.Get", { key: "ht_temp" }).then(function(data) {
+  var p2 = rpcLocal("KVS.Get", { key: "ht_temp" }).then(function(data) {
     document.getElementById("st-temp").textContent =
       data.value ? parseFloat(data.value).toFixed(1) + " °C" : "-- °C";
   }).catch(function() {
     document.getElementById("st-temp").textContent = "-- °C";
   });
 
-  // Get enabled status
-  rpc("KVS.Get", { key: "enabled" }).then(function(data) {
-    var el = document.getElementById("st-enabled");
+  var p3 = rpcLocal("KVS.Get", { key: "enabled" }).then(function(data) {
     var on = data.value === "1";
-    el.textContent = on ? "ON" : "OFF";
-    el.className = "value " + (on ? "on" : "off");
-    document.getElementById("enableToggle").checked = on;
+    setEnabledUI(on);
   }).catch(function() {
-    document.getElementById("st-enabled").textContent = "-- ";
+    document.getElementById("st-enabled").textContent = "--";
+  });
+
+  var p4 = rpcLocal("KVS.Get", { key: "temp_target" }).then(function(data) {
+    if (data.value) {
+      document.getElementById("tempTarget").value = data.value;
+      document.getElementById("tempTargetVal").textContent = data.value + " °C";
+    }
+  }).catch(function() {});
+
+  var p5 = rpcLocal("KVS.Get", { key: "temp_hyst" }).then(function(data) {
+    if (data.value) {
+      document.getElementById("tempHyst").value = data.value;
+      document.getElementById("tempHystVal").textContent = data.value + " °C";
+    }
+  }).catch(function() {});
+
+  return Promise.all([p1, p2, p3, p4, p5]);
+}
+
+function refreshStatusCloud() {
+  if (!CFG.cloudServer || !CFG.authKey || !CFG.devicePro) {
+    document.getElementById("st-temp").textContent = "Config!";
+    document.getElementById("st-temp").className = "value err";
+    return Promise.resolve();
+  }
+
+  return cloudV2("devices/api/get", {
+    ids: [CFG.devicePro],
+    select: ["status"]
+  }).then(function(data) {
+    if (!data || !data.length) throw new Error("Pas de donnees");
+    var dev = data[0];
+    if (!dev.online) {
+      document.getElementById("st-relay").textContent = "HORS LIGNE";
+      document.getElementById("st-relay").className = "value err";
+      return;
+    }
+    var sw = dev.status && dev.status["switch:0"];
+    if (sw) {
+      setRelayUI(sw.output);
+      document.getElementById("st-power").textContent =
+        sw.apower !== undefined ? sw.apower.toFixed(0) + " W" : "-- W";
+    }
+    // Try to get temp from device status (if H&T reports via cloud)
+    var ht = dev.status && (dev.status["temperature:0"] || dev.status["temperature:100"]);
+    if (ht && ht.tC !== undefined) {
+      document.getElementById("st-temp").textContent = ht.tC.toFixed(1) + " °C";
+    }
+  }).catch(function(e) {
+    log("Erreur Cloud : " + e.message);
+    document.getElementById("st-relay").textContent = "ERR";
+    document.getElementById("st-relay").className = "value err";
   });
 }
 
-// === Grid ===
+function setRelayUI(on) {
+  var el = document.getElementById("st-relay");
+  el.textContent = on ? "ON" : "OFF";
+  el.className = "value " + (on ? "on" : "off");
+  document.getElementById("relayToggle").checked = !!on;
+}
+
+function setEnabledUI(on) {
+  var el = document.getElementById("st-enabled");
+  el.textContent = on ? "ON" : "OFF";
+  el.className = "value " + (on ? "on" : "off");
+  document.getElementById("enableToggle").checked = on;
+}
+
+// =========================================================================
+// CONTROLS
+// =========================================================================
+function toggleRelay() {
+  var on = document.getElementById("relayToggle").checked;
+  if (currentMode === "local") {
+    rpcLocal("Switch.Set", { id: 0, on: on }).then(function() {
+      refreshStatus();
+    }).catch(function(e) { log("Erreur relais : " + e); });
+  } else {
+    var body = "id=" + CFG.devicePro + "&auth_key=" + encodeURIComponent(CFG.authKey) +
+      "&channel=0&turn=" + (on ? "on" : "off");
+    cloudPost("device/relay/control", body).then(function(data) {
+      if (data.isok) { log("Relais " + (on ? "ON" : "OFF")); }
+      else { log("Erreur Cloud relais : " + JSON.stringify(data.errors)); }
+      setTimeout(refreshStatus, 1500);
+    }).catch(function(e) { log("Erreur Cloud : " + e); });
+  }
+}
+
+function toggleEnabled() {
+  var on = document.getElementById("enableToggle").checked;
+  if (currentMode === "local") {
+    rpcLocal("KVS.Set", { key: "enabled", value: on ? "1" : "0" }).then(function() {
+      log("Systeme " + (on ? "active" : "desactive"));
+      refreshStatus();
+    }).catch(function(e) { log("Erreur : " + e); });
+  } else {
+    // Cloud can't set KVS, use relay control as workaround
+    var body = "id=" + CFG.devicePro + "&auth_key=" + encodeURIComponent(CFG.authKey) +
+      "&channel=0&turn=" + (on ? "on" : "off");
+    cloudPost("device/relay/control", body).then(function(data) {
+      if (data.isok) { log("Relais " + (on ? "ON" : "OFF") + " (KVS non modifiable via Cloud)"); }
+      else { log("Erreur : " + JSON.stringify(data.errors)); }
+      setTimeout(refreshStatus, 1500);
+    }).catch(function(e) { log("Erreur Cloud : " + e); });
+  }
+}
+
+function applyTempSettings() {
+  if (currentMode !== "local") {
+    log("Modification temperature uniquement en mode local");
+    return;
+  }
+  var target = document.getElementById("tempTarget").value;
+  var hyst = document.getElementById("tempHyst").value;
+  Promise.all([
+    rpcLocal("KVS.Set", { key: "temp_target", value: target }),
+    rpcLocal("KVS.Set", { key: "temp_hyst", value: hyst })
+  ]).then(function() {
+    log("Temperature cible: " + target + " °C, hysteresis: " + hyst + " °C");
+  }).catch(function(e) { log("Erreur : " + e); });
+}
+
+// =========================================================================
+// TABS
+// =========================================================================
+function switchTab(name) {
+  document.querySelectorAll(".tab-section").forEach(function(el) {
+    el.classList.remove("active");
+  });
+  document.getElementById("tab-" + name).classList.add("active");
+
+  document.querySelectorAll(".bottom-nav button").forEach(function(btn, i) {
+    btn.classList.toggle("active", ["status","schedule","deploy"][i] === name);
+  });
+  document.querySelectorAll(".desktop-tabs button").forEach(function(btn, i) {
+    btn.classList.toggle("active", ["status","schedule","deploy"][i] === name);
+  });
+}
+
+// =========================================================================
+// SCHEDULE GRID
+// =========================================================================
+var DAYS = ["lun","mar","mer","jeu","ven","sam","dim"];
+var DAY_LABELS = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
+var SLOTS = 48;
+var schedule = [];
+for (var _d = 0; _d < 7; _d++) {
+  schedule[_d] = [];
+  for (var _s = 0; _s < SLOTS; _s++) schedule[_d][_s] = false;
+}
+var isDragging = false;
+var dragValue = false;
+
 function buildGrid() {
   var wrap = document.getElementById("gridWrap");
   var table = document.createElement("table");
   table.className = "schedule";
 
-  // Header row: hour labels
   var thead = document.createElement("thead");
   var hrow = document.createElement("tr");
   var corner = document.createElement("th");
   corner.className = "day-label";
-  corner.textContent = "";
   hrow.appendChild(corner);
   for (var h = 0; h < 24; h++) {
     var th = document.createElement("th");
@@ -315,7 +778,6 @@ function buildGrid() {
   thead.appendChild(hrow);
   table.appendChild(thead);
 
-  // Body: one row per day
   var tbody = document.createElement("tbody");
   for (var d = 0; d < 7; d++) {
     var tr = document.createElement("tr");
@@ -323,13 +785,11 @@ function buildGrid() {
     dayTd.className = "day-label";
     dayTd.textContent = DAY_LABELS[d];
     tr.appendChild(dayTd);
-
     for (var s = 0; s < SLOTS; s++) {
       var td = document.createElement("td");
       td.className = "slot" + (schedule[d][s] ? " active" : "");
       td.dataset.day = d;
       td.dataset.slot = s;
-
       td.addEventListener("mousedown", onSlotDown);
       td.addEventListener("mouseenter", onSlotEnter);
       td.addEventListener("touchstart", onTouchStart, { passive: false });
@@ -339,11 +799,8 @@ function buildGrid() {
     tbody.appendChild(tr);
   }
   table.appendChild(tbody);
-
   wrap.innerHTML = "";
   wrap.appendChild(table);
-
-  // Mouse up on document
   document.addEventListener("mouseup", function() { isDragging = false; });
   document.addEventListener("touchend", function() { isDragging = false; });
 }
@@ -352,185 +809,103 @@ function toggleSlot(td) {
   var d = parseInt(td.dataset.day);
   var s = parseInt(td.dataset.slot);
   schedule[d][s] = dragValue;
-  if (dragValue) td.classList.add("active");
-  else td.classList.remove("active");
+  if (dragValue) td.classList.add("active"); else td.classList.remove("active");
 }
-
 function onSlotDown(e) {
-  e.preventDefault();
-  isDragging = true;
-  var d = parseInt(this.dataset.day);
-  var s = parseInt(this.dataset.slot);
-  dragValue = !schedule[d][s];
-  toggleSlot(this);
+  e.preventDefault(); isDragging = true;
+  var d = parseInt(this.dataset.day), s = parseInt(this.dataset.slot);
+  dragValue = !schedule[d][s]; toggleSlot(this);
 }
-
-function onSlotEnter() {
-  if (isDragging) toggleSlot(this);
-}
-
+function onSlotEnter() { if (isDragging) toggleSlot(this); }
 function onTouchStart(e) {
-  e.preventDefault();
-  isDragging = true;
-  var d = parseInt(this.dataset.day);
-  var s = parseInt(this.dataset.slot);
-  dragValue = !schedule[d][s];
-  toggleSlot(this);
+  e.preventDefault(); isDragging = true;
+  var d = parseInt(this.dataset.day), s = parseInt(this.dataset.slot);
+  dragValue = !schedule[d][s]; toggleSlot(this);
 }
-
 function onTouchMove(e) {
   e.preventDefault();
   var touch = e.touches[0];
   var el = document.elementFromPoint(touch.clientX, touch.clientY);
-  if (el && el.classList.contains("slot") && isDragging) {
-    toggleSlot(el);
-  }
+  if (el && el.classList.contains("slot") && isDragging) toggleSlot(el);
 }
 
-// === Schedule encode/decode ===
 function encodeDay(daySlots) {
-  // Convert 48 booleans to "HHMM-HHMM,HHMM-HHMM"
-  var ranges = [];
-  var start = -1;
+  var ranges = [], start = -1;
   for (var s = 0; s <= SLOTS; s++) {
-    if (s < SLOTS && daySlots[s]) {
-      if (start === -1) start = s;
-    } else {
-      if (start !== -1) {
-        var sh = Math.floor(start / 2);
-        var sm = (start % 2) * 30;
-        var eh = Math.floor(s / 2);
-        var em = (s % 2) * 30;
-        ranges.push(
-          sh.toString().padStart(2,"0") + sm.toString().padStart(2,"0") +
-          "-" +
-          eh.toString().padStart(2,"0") + em.toString().padStart(2,"0")
-        );
-        start = -1;
-      }
+    if (s < SLOTS && daySlots[s]) { if (start === -1) start = s; }
+    else if (start !== -1) {
+      var sh = Math.floor(start/2), sm = (start%2)*30;
+      var eh = Math.floor(s/2), em = (s%2)*30;
+      ranges.push(sh.toString().padStart(2,"0") + sm.toString().padStart(2,"0") + "-" +
+        eh.toString().padStart(2,"0") + em.toString().padStart(2,"0"));
+      start = -1;
     }
   }
   return ranges.join(",");
 }
 
 function decodeDay(str) {
-  var slots = [];
-  for (var i = 0; i < SLOTS; i++) slots[i] = false;
-  if (!str || str === "") return slots;
+  var slots = []; for (var i=0;i<SLOTS;i++) slots[i]=false;
+  if (!str) return slots;
   var parts = str.split(",");
-  for (var p = 0; p < parts.length; p++) {
+  for (var p=0;p<parts.length;p++) {
     var se = parts[p].split("-");
-    if (se.length !== 2) continue;
-    var startH = parseInt(se[0].substring(0, 2));
-    var startM = parseInt(se[0].substring(2, 4));
-    var endH = parseInt(se[1].substring(0, 2));
-    var endM = parseInt(se[1].substring(2, 4));
-    var startSlot = startH * 2 + (startM >= 30 ? 1 : 0);
-    var endSlot = endH * 2 + (endM >= 30 ? 1 : 0);
-    for (var s = startSlot; s < endSlot && s < SLOTS; s++) {
-      slots[s] = true;
-    }
+    if (se.length!==2) continue;
+    var sS = parseInt(se[0].substring(0,2))*2 + (parseInt(se[0].substring(2,4))>=30?1:0);
+    var eS = parseInt(se[1].substring(0,2))*2 + (parseInt(se[1].substring(2,4))>=30?1:0);
+    for (var s=sS; s<eS && s<SLOTS; s++) slots[s]=true;
   }
   return slots;
 }
 
-// === Load config from KVS ===
-function loadConfig() {
-  log("Chargement de la configuration...");
-  var loaded = 0;
-  var total = DAYS.length + 2; // days + temp + hyst
-
-  function done() {
-    loaded++;
-    if (loaded >= total) {
-      updateGrid();
-      log("Configuration chargee");
-    }
-  }
-
-  for (var d = 0; d < DAYS.length; d++) {
-    (function(idx, key) {
-      rpc("KVS.Get", { key: "s_" + key }).then(function(data) {
-        schedule[idx] = decodeDay(data.value || "");
-        done();
-      }).catch(function() { done(); });
-    })(d, DAYS[d]);
-  }
-
-  rpc("KVS.Get", { key: "temp_target" }).then(function(data) {
-    if (data.value) {
-      document.getElementById("tempTarget").value = data.value;
-      document.getElementById("tempTargetVal").textContent = data.value + " °C";
-    }
-    done();
-  }).catch(function() { done(); });
-
-  rpc("KVS.Get", { key: "temp_hyst" }).then(function(data) {
-    if (data.value) {
-      document.getElementById("tempHyst").value = data.value;
-      document.getElementById("tempHystVal").textContent = data.value + " °C";
-    }
-    done();
-  }).catch(function() { done(); });
-}
-
 function updateGrid() {
-  var cells = document.querySelectorAll("td.slot");
-  cells.forEach(function(td) {
-    var d = parseInt(td.dataset.day);
-    var s = parseInt(td.dataset.slot);
-    if (schedule[d][s]) td.classList.add("active");
-    else td.classList.remove("active");
+  document.querySelectorAll("td.slot").forEach(function(td) {
+    var d=parseInt(td.dataset.day), s=parseInt(td.dataset.slot);
+    td.classList.toggle("active", schedule[d][s]);
   });
 }
 
 function clearAll() {
-  for (var d = 0; d < 7; d++)
-    for (var s = 0; s < SLOTS; s++)
-      schedule[d][s] = false;
-  updateGrid();
-  log("Grille effacee (non sauvegardee)");
+  for (var d=0;d<7;d++) for (var s=0;s<SLOTS;s++) schedule[d][s]=false;
+  updateGrid(); log("Grille effacee");
 }
 
-// === Apply config to KVS ===
-function applyConfig() {
-  log("Sauvegarde de la configuration...");
-  var ops = [];
-
-  // Schedule
-  for (var d = 0; d < DAYS.length; d++) {
-    ops.push({ key: "s_" + DAYS[d], value: encodeDay(schedule[d]) });
+function loadConfig() {
+  if (currentMode !== "local") { log("Chargement horaires : mode local requis"); return; }
+  log("Chargement...");
+  var loaded=0, total=DAYS.length;
+  function done() { if(++loaded>=total) { updateGrid(); log("Horaires charges"); } }
+  for (var d=0;d<DAYS.length;d++) {
+    (function(idx,key) {
+      rpcLocal("KVS.Get",{key:"s_"+key}).then(function(data) {
+        schedule[idx]=decodeDay(data.value||""); done();
+      }).catch(function(){done();});
+    })(d, DAYS[d]);
   }
+}
 
-  // Temp settings
-  ops.push({ key: "temp_target", value: document.getElementById("tempTarget").value });
-  ops.push({ key: "temp_hyst", value: document.getElementById("tempHyst").value });
+function applyConfig() {
+  if (currentMode !== "local") { log("Sauvegarde horaires : mode local requis"); return; }
+  log("Sauvegarde des horaires...");
+  var ops = [];
+  for (var d=0;d<DAYS.length;d++) ops.push({key:"s_"+DAYS[d], value:encodeDay(schedule[d])});
 
-  // Enabled
-  ops.push({ key: "enabled", value: document.getElementById("enableToggle").checked ? "1" : "0" });
-
-  var done = 0;
-  var errors = 0;
-  for (var i = 0; i < ops.length; i++) {
+  var done=0, errors=0;
+  for (var i=0;i<ops.length;i++) {
     (function(op) {
-      rpc("KVS.Set", { key: op.key, value: op.value }, true).then(function() {
-        done++;
-        if (done + errors >= ops.length) {
-          log("Configuration sauvegardee (" + done + " OK, " + errors + " erreurs)");
-          refreshStatus();
-        }
-      }).catch(function(e) {
+      rpcLocal("KVS.Set",{key:op.key, value:op.value}).then(function() {
+        if(++done+errors>=ops.length) log("Horaires sauvegardes ("+done+" OK, "+errors+" err)");
+      }).catch(function() {
         errors++;
-        log("Erreur KVS.Set " + op.key + " : " + e);
-        if (done + errors >= ops.length) {
-          log("Configuration sauvegardee (" + done + " OK, " + errors + " erreurs)");
-        }
+        if(done+ ++errors>=ops.length) log("Horaires: "+done+" OK, "+errors+" erreurs");
       });
     })(ops[i]);
   }
 }
 
-// === Script deployment ===
+// =========================================================================
+// SCRIPT DEPLOYMENT
+// =========================================================================
 var THERMOSTAT_SCRIPT = "" +
 "// Thermostat Chauffe Maison v1.0\n" +
 "var TIMER_INTERVAL = 60000;\n" +
@@ -618,150 +993,116 @@ var THERMOSTAT_SCRIPT = "" +
 "print(\"Thermostat Chauffe Maison demarre\");\n";
 
 function deployScript() {
+  if (currentMode !== "local") { log("Deploiement : mode local requis"); return; }
   log("Deploiement du script thermostat...");
-
-  // Step 1: Check existing scripts
-  rpc("Script.List").then(function(data) {
+  rpcLocal("Script.List").then(function(data) {
     var existing = null;
     if (data && data.scripts) {
-      for (var i = 0; i < data.scripts.length; i++) {
-        if (data.scripts[i].name === "thermostat") {
-          existing = data.scripts[i].id;
-          break;
-        }
+      for (var i=0;i<data.scripts.length;i++) {
+        if (data.scripts[i].name === "thermostat") { existing = data.scripts[i].id; break; }
       }
     }
-
     if (existing !== null) {
-      // Stop, delete and recreate
-      log("Script existant trouve (id=" + existing + "), remplacement...");
-      rpc("Script.Stop", { id: existing }, true).then(function() {
-        return rpc("Script.Delete", { id: existing }, true);
-      }).then(function() {
-        createScript();
-      }).catch(function() {
-        createScript();
-      });
-    } else {
-      createScript();
-    }
-  }).catch(function(e) {
-    log("Erreur Script.List : " + e);
-  });
+      log("Script existant (id=" + existing + "), remplacement...");
+      rpcLocal("Script.Stop",{id:existing}).then(function() {
+        return rpcLocal("Script.Delete",{id:existing});
+      }).then(createScript).catch(createScript);
+    } else { createScript(); }
+  }).catch(function(e) { log("Erreur Script.List : " + e); });
 }
 
 function createScript() {
-  rpc("Script.Create", { name: "thermostat" }, true).then(function(data) {
+  rpcLocal("Script.Create",{name:"thermostat"}).then(function(data) {
     var id = data.id;
     log("Script cree (id=" + id + ")");
-
-    // PutCode in chunks (max 1024 bytes per call)
     var code = THERMOSTAT_SCRIPT;
     var CHUNK = 1024;
     var chunks = [];
-    for (var i = 0; i < code.length; i += CHUNK) {
-      chunks.push(code.substring(i, i + CHUNK));
-    }
+    for (var i=0;i<code.length;i+=CHUNK) chunks.push(code.substring(i,i+CHUNK));
 
     function uploadChunk(idx) {
       if (idx >= chunks.length) {
-        // Enable and start
         log("Code uploade (" + chunks.length + " chunks)");
-        rpc("Script.SetConfig", { id: id, config: { enable: true } }, true).then(function() {
-          return rpc("Script.Start", { id: id }, true);
-        }).then(function() {
-          log("Script thermostat demarre !");
-        }).catch(function(e) {
-          log("Erreur demarrage : " + e);
-        });
+        rpcLocal("Script.SetConfig",{id:id,config:{enable:true}}).then(function() {
+          return rpcLocal("Script.Start",{id:id});
+        }).then(function() { log("Script thermostat demarre !"); })
+        .catch(function(e) { log("Erreur demarrage : " + e); });
         return;
       }
-      rpc("Script.PutCode", {
-        id: id,
-        code: chunks[idx],
-        append: idx > 0
-      }, true).then(function() {
-        uploadChunk(idx + 1);
-      }).catch(function(e) {
-        log("Erreur PutCode chunk " + idx + " : " + e);
-      });
+      rpcLocal("Script.PutCode",{id:id,code:chunks[idx],append:idx>0}).then(function() {
+        uploadChunk(idx+1);
+      }).catch(function(e) { log("Erreur PutCode chunk " + idx + " : " + e); });
     }
     uploadChunk(0);
-  }).catch(function(e) {
-    log("Erreur Script.Create : " + e);
-  });
+  }).catch(function(e) { log("Erreur Script.Create : " + e); });
 }
 
 function checkScript() {
-  rpc("Script.List").then(function(data) {
+  if (currentMode !== "local") { log("Verification : mode local requis"); return; }
+  rpcLocal("Script.List").then(function(data) {
     if (data && data.scripts) {
-      log("Scripts sur le Shelly :");
-      for (var i = 0; i < data.scripts.length; i++) {
-        var s = data.scripts[i];
-        log("  #" + s.id + " " + (s.name || "sans nom") + " - " + (s.running ? "EN COURS" : "arrete") + (s.enable ? " (auto)" : ""));
+      log("Scripts :");
+      for (var i=0;i<data.scripts.length;i++) {
+        var s=data.scripts[i];
+        log("  #"+s.id+" "+s.name+" - "+(s.running?"EN COURS":"arrete")+(s.enable?" (auto)":""));
       }
-      if (data.scripts.length === 0) log("  Aucun script");
+      if (!data.scripts.length) log("  Aucun script");
     }
-  }).catch(function(e) {
-    log("Erreur : " + e);
-  });
+  }).catch(function(e) { log("Erreur : " + e); });
 }
 
-// === Webhook H&T ===
 function configureWebhook() {
-  var proIP = getIP();
-  var hookUrl = "http://" + proIP + "/rpc/KVS.Set?key=%22ht_temp%22&value=%22${ev.tC}%22";
-  var htIP = prompt("IP du Shelly Plus H&T :", HT_IP);
+  if (currentMode !== "local") { log("Webhook : mode local requis"); return; }
+  var proIP = CFG.localIP;
+  var hookUrl = "http://"+proIP+"/rpc/KVS.Set?key=%22ht_temp%22&value=%22${ev.tC}%22";
+  var htIP = prompt("IP du Shelly Plus H&T :", CFG.localHTIP);
   if (!htIP) return;
+  log("Configuration webhook sur " + htIP + "...");
 
-  log("Configuration du webhook sur " + htIP + "...");
-
-  // Check existing webhooks
-  rpcTo(htIP, "Webhook.List").then(function(data) {
-    // Delete existing temp webhooks
+  rpcLocalTo(htIP,"Webhook.List").then(function(data) {
     var toDelete = [];
     if (data && data.hooks) {
-      for (var i = 0; i < data.hooks.length; i++) {
-        if (data.hooks[i].event === "temperature" || data.hooks[i].name === "ht_temp") {
+      for (var i=0;i<data.hooks.length;i++) {
+        if (data.hooks[i].event==="temperature"||data.hooks[i].name==="ht_temp")
           toDelete.push(data.hooks[i].id);
-        }
       }
     }
-
     function afterDelete() {
-      rpcTo(htIP, "Webhook.Create", {
-        cid: 0,
-        enable: true,
-        event: "temperature",
-        name: "ht_temp",
-        urls: [hookUrl]
-      }, true).then(function(res) {
-        log("Webhook cree (id=" + res.id + ") : temperature -> KVS.Set ht_temp");
-      }).catch(function(e) {
-        log("Erreur creation webhook : " + e);
-      });
+      rpcLocalTo(htIP,"Webhook.Create",{cid:0,enable:true,event:"temperature",
+        name:"ht_temp",urls:[hookUrl]}).then(function(res) {
+        log("Webhook cree (id="+res.id+")");
+      }).catch(function(e) { log("Erreur webhook : "+e); });
     }
-
-    if (toDelete.length > 0) {
-      var deleted = 0;
-      for (var j = 0; j < toDelete.length; j++) {
-        rpcTo(htIP, "Webhook.Delete", { id: toDelete[j] }).then(function() {
-          deleted++;
-          if (deleted >= toDelete.length) afterDelete();
-        }).catch(function() {
-          deleted++;
-          if (deleted >= toDelete.length) afterDelete();
-        });
+    if (toDelete.length) {
+      var del=0;
+      for (var j=0;j<toDelete.length;j++) {
+        rpcLocalTo(htIP,"Webhook.Delete",{id:toDelete[j]}).then(function() {
+          if(++del>=toDelete.length) afterDelete();
+        }).catch(function() { if(++del>=toDelete.length) afterDelete(); });
       }
-    } else {
-      afterDelete();
-    }
-  }).catch(function(e) {
-    log("Erreur connexion H&T (" + htIP + ") : " + e);
-  });
+    } else afterDelete();
+  }).catch(function(e) { log("Erreur H&T ("+htIP+") : "+e); });
 }
 
-// === Slider events ===
+// =========================================================================
+// LOG
+// =========================================================================
+function log(msg) {
+  var el = document.getElementById("log");
+  var line = document.createElement("div");
+  var t = new Date();
+  line.textContent = t.getHours().toString().padStart(2,"0") + ":" +
+    t.getMinutes().toString().padStart(2,"0") + ":" +
+    t.getSeconds().toString().padStart(2,"0") + " " + msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+  // Keep max 50 lines
+  while (el.children.length > 50) el.removeChild(el.firstChild);
+}
+
+// =========================================================================
+// SLIDER EVENTS
+// =========================================================================
 document.getElementById("tempTarget").addEventListener("input", function() {
   document.getElementById("tempTargetVal").textContent = this.value + " °C";
 });
@@ -769,34 +1110,26 @@ document.getElementById("tempHyst").addEventListener("input", function() {
   document.getElementById("tempHystVal").textContent = this.value + " °C";
 });
 
-// === HTTPS detection ===
-function isSecureContext() {
-  return location.protocol === "https:";
-}
-
-function downloadPage() {
-  var html = document.documentElement.outerHTML;
-  var blob = new Blob(["<!DOCTYPE html>\n" + html], { type: "text/html" });
-  var a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "chauffe-maison.html";
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
-
-// === Init ===
-(function init() {
-  var saved = localStorage.getItem("chauffe_ip");
-  if (saved) document.getElementById("ipInput").value = saved;
-
-  if (isSecureContext()) {
-    document.getElementById("httpsWarn").style.display = "block";
-  }
-
+// =========================================================================
+// INIT
+// =========================================================================
+function showApp() {
+  document.getElementById("loginScreen").style.display = "none";
+  document.getElementById("appScreen").style.display = "block";
+  loadSettings();
+  detectMode();
   buildGrid();
-  refreshStatus();
-  loadConfig();
-})();
+  // Wait for mode detection before refreshing
+  setTimeout(function() {
+    refreshStatus();
+    if (currentMode === "local") loadConfig();
+  }, 500);
+  // Auto-refresh every 30s
+  if (statusTimer) clearInterval(statusTimer);
+  statusTimer = setInterval(refreshStatus, 30000);
+}
+
+checkAuth();
 </script>
 </body>
 </html>
