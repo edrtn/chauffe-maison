@@ -63,6 +63,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
 .status-item .value.on{color:var(--success)}
 .status-item .value.off{color:var(--text2)}
 .status-item .value.err{color:var(--danger)}
+.status-update{text-align:center;font-size:.65rem;color:var(--text2);margin-top:8px}
 
 /* ===== CONTROLS ===== */
 .control-row{display:flex;align-items:center;justify-content:space-between;
@@ -113,7 +114,7 @@ button,.btn{padding:10px 18px;border:none;border-radius:8px;font-size:.85rem;fon
 .btn-group{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 
 /* ===== LOG ===== */
-#log{max-height:160px;overflow-y:auto;font-family:"SF Mono",Monaco,Consolas,monospace;
+#log{max-height:200px;overflow-y:auto;font-family:"SF Mono",Monaco,Consolas,monospace;
   font-size:.7rem;background:var(--surface2);border-radius:8px;padding:10px;
   margin-top:10px;color:var(--text2);line-height:1.5}
 #log div{padding:1px 0}
@@ -222,6 +223,7 @@ button,.btn{padding:10px 18px;border:none;border-radius:8px;font-size:.85rem;fon
           <div class="value" id="st-target">--</div>
         </div>
       </div>
+      <div class="status-update" id="statusUpdate"></div>
       <div class="btn-group" style="justify-content:center">
         <button class="btn btn-secondary btn-sm" onclick="refreshStatus()">Rafraichir</button>
       </div>
@@ -232,7 +234,7 @@ button,.btn{padding:10px 18px;border:none;border-radius:8px;font-size:.85rem;fon
       <div class="control-row">
         <div>
           <div class="label">Thermostat automatique</div>
-          <div class="sublabel">Pilote le relais selon horaires + temperature</div>
+          <div class="sublabel">Le serveur pilote le relais 24h/24</div>
         </div>
         <label class="toggle">
           <input type="checkbox" id="enableToggle" onchange="toggleThermostat()">
@@ -263,6 +265,9 @@ button,.btn{padding:10px 18px;border:none;border-radius:8px;font-size:.85rem;fon
         <input type="range" id="tempHyst" min="0.5" max="3" step="0.5" value="1">
         <span class="temp-val" id="tempHystVal">1 °C</span>
       </div>
+      <div class="btn-group">
+        <button class="btn btn-primary btn-sm" onclick="saveConfig()">Appliquer</button>
+      </div>
     </div>
   </div>
 
@@ -271,11 +276,11 @@ button,.btn{padding:10px 18px;border:none;border-radius:8px;font-size:.85rem;fon
     <div class="card">
       <h2>Plages horaires</h2>
       <p style="font-size:.75rem;color:var(--text2);margin-bottom:10px">
-        Clique ou glisse pour activer des creneaux de 30 min. Le chauffage se declenche pendant ces plages si la temperature est inferieure a la cible.
+        Clique ou glisse pour activer des creneaux de 30 min. Le serveur declenche le chauffage pendant ces plages si la temperature est inferieure a la cible.
       </p>
       <div class="grid-wrap" id="gridWrap"></div>
       <div class="btn-group">
-        <button class="btn btn-primary" onclick="saveSchedule()">Sauvegarder</button>
+        <button class="btn btn-primary" onclick="saveConfig()">Sauvegarder</button>
         <button class="btn btn-secondary" onclick="clearAll()">Tout effacer</button>
       </div>
     </div>
@@ -284,10 +289,10 @@ button,.btn{padding:10px 18px;border:none;border-radius:8px;font-size:.85rem;fon
   <!-- TAB: Log -->
   <div class="tab-section" id="tab-log">
     <div class="card">
-      <h2>Journal du thermostat</h2>
+      <h2>Journal du thermostat <span class="spinner" id="logSpinner" style="display:none"></span></h2>
       <div id="log"></div>
       <div class="btn-group">
-        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('log').innerHTML=''">Effacer</button>
+        <button class="btn btn-secondary btn-sm" onclick="loadLogs()">Rafraichir</button>
       </div>
     </div>
   </div>
@@ -312,24 +317,17 @@ button,.btn{padding:10px 18px;border:none;border-radius:8px;font-size:.85rem;fon
     <h1>Parametres</h1>
     <button class="icon-btn" onclick="closeSettings()" style="font-size:1.5rem">&times;</button>
   </div>
-  <div class="form-section">Shelly Cloud</div>
+  <div class="form-section">Serveur</div>
   <div class="card">
     <div class="form-group">
-      <label>Serveur</label>
-      <input type="text" id="cfgCloudServer" placeholder="shelly-96-eu.shelly.cloud">
+      <label>URL du Worker</label>
+      <input type="text" id="cfgWorkerUrl" placeholder="https://chauffe-maison.edward-renton-antony.workers.dev">
+      <div class="hint">URL du serveur Cloudflare Worker</div>
     </div>
     <div class="form-group">
-      <label>Auth Key</label>
-      <input type="password" id="cfgAuthKey" placeholder="Cle d'autorisation cloud">
-      <div class="hint">App Shelly > Parametres > Authorization Cloud Key</div>
-    </div>
-    <div class="form-group">
-      <label>Device ID - Pro 1PM</label>
-      <input type="text" id="cfgDevicePro" placeholder="8813bfdaaa40">
-    </div>
-    <div class="form-group">
-      <label>Device ID - H&T</label>
-      <input type="text" id="cfgDeviceHT" placeholder="70af09e512c8">
+      <label>Cle API</label>
+      <input type="password" id="cfgApiKey" placeholder="Cle d'authentification">
+      <div class="hint">Cle generee lors du deploiement du Worker</div>
     </div>
   </div>
   <div class="btn-group">
@@ -340,7 +338,7 @@ button,.btn{padding:10px 18px;border:none;border-radius:8px;font-size:.85rem;fon
 
 <script>
 // =========================================================================
-// AUTH
+// AUTH (client-side login)
 // =========================================================================
 var AUTH_HASH = "1da4eb7796c0f4950ab80e1897d36eeedb71bc47f86b5a944a846ed2de48fd06";
 
@@ -370,7 +368,7 @@ function doLogin() {
 
 function doLogout() {
   sessionStorage.removeItem("chauffe_auth");
-  stopThermostat();
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
   document.getElementById("appScreen").style.display = "none";
   document.getElementById("loginScreen").style.display = "flex";
   document.getElementById("loginPass").value = "";
@@ -381,109 +379,79 @@ document.getElementById("loginPass").addEventListener("keydown", function(e) { i
 document.getElementById("loginUser").addEventListener("keydown", function(e) { if (e.key === "Enter") document.getElementById("loginPass").focus(); });
 
 // =========================================================================
-// CONFIG
+// WORKER CONFIG (stored in localStorage)
 // =========================================================================
 var CFG = {
-  cloudServer: "shelly-96-eu.shelly.cloud",
-  authKey: "",
-  devicePro: "8813bfdaaa40",
-  deviceHT: "70af09e512c8"
+  workerUrl: "https://chauffe-maison.edward-renton-antony.workers.dev",
+  apiKey: ""
 };
 
 function loadSettings() {
   try {
-    var s = localStorage.getItem("chauffe_cfg");
+    var s = localStorage.getItem("chauffe_cfg_v2");
     if (s) { var p = JSON.parse(s); for (var k in p) { if (CFG.hasOwnProperty(k)) CFG[k] = p[k]; } }
   } catch(e) {}
 }
 
 function saveSettings() {
-  CFG.cloudServer = document.getElementById("cfgCloudServer").value.trim();
-  CFG.authKey = document.getElementById("cfgAuthKey").value.trim();
-  CFG.devicePro = document.getElementById("cfgDevicePro").value.trim().toLowerCase();
-  CFG.deviceHT = document.getElementById("cfgDeviceHT").value.trim().toLowerCase();
-  localStorage.setItem("chauffe_cfg", JSON.stringify(CFG));
+  CFG.workerUrl = document.getElementById("cfgWorkerUrl").value.trim().replace(/\/+$/, "");
+  CFG.apiKey = document.getElementById("cfgApiKey").value.trim();
+  localStorage.setItem("chauffe_cfg_v2", JSON.stringify(CFG));
   closeSettings();
   refreshStatus();
 }
 
 function openSettings() {
-  document.getElementById("cfgCloudServer").value = CFG.cloudServer;
-  document.getElementById("cfgAuthKey").value = CFG.authKey;
-  document.getElementById("cfgDevicePro").value = CFG.devicePro;
-  document.getElementById("cfgDeviceHT").value = CFG.deviceHT;
+  document.getElementById("cfgWorkerUrl").value = CFG.workerUrl;
+  document.getElementById("cfgApiKey").value = CFG.apiKey;
   document.getElementById("settingsPanel").style.display = "block";
 }
 
 function closeSettings() { document.getElementById("settingsPanel").style.display = "none"; }
 
 // =========================================================================
-// THERMOSTAT STATE (stored in localStorage)
+// WORKER API
 // =========================================================================
-var thermoState = {
+function api(method, path, body) {
+  if (!CFG.workerUrl || !CFG.apiKey) return Promise.reject(new Error("Config manquante"));
+  var opts = {
+    method: method,
+    headers: {
+      "Authorization": "Bearer " + CFG.apiKey,
+      "Content-Type": "application/json"
+    }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  return fetch(CFG.workerUrl + path, opts).then(function(r) {
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  });
+}
+
+// =========================================================================
+// LOCAL STATE (mirrors server config for UI)
+// =========================================================================
+var config = {
   enabled: false,
   tempTarget: 18,
   tempHyst: 1,
-  schedule: [] // 7 x 48 booleans
+  schedule: []
 };
 
 function initSchedule() {
-  thermoState.schedule = [];
+  config.schedule = [];
   for (var d = 0; d < 7; d++) {
-    thermoState.schedule[d] = [];
-    for (var s = 0; s < 48; s++) thermoState.schedule[d][s] = false;
+    config.schedule[d] = [];
+    for (var s = 0; s < 48; s++) config.schedule[d][s] = false;
   }
 }
-
-function loadThermoState() {
-  try {
-    var s = localStorage.getItem("chauffe_thermo");
-    if (s) {
-      var p = JSON.parse(s);
-      thermoState.enabled = !!p.enabled;
-      thermoState.tempTarget = p.tempTarget || 18;
-      thermoState.tempHyst = p.tempHyst || 1;
-      if (p.schedule && p.schedule.length === 7) thermoState.schedule = p.schedule;
-      else initSchedule();
-    } else {
-      initSchedule();
-    }
-  } catch(e) { initSchedule(); }
-}
-
-function saveThermoState() {
-  localStorage.setItem("chauffe_thermo", JSON.stringify(thermoState));
-}
-
-// =========================================================================
-// CLOUD API
-// =========================================================================
-function cloudV1(endpoint, params) {
-  var body = "auth_key=" + encodeURIComponent(CFG.authKey) + "&" + params;
-  return fetch("https://" + CFG.cloudServer + "/" + endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: body
-  }).then(function(r) { return r.json(); });
-}
-
-function cloudV2(endpoint, body) {
-  body.auth_key = CFG.authKey;
-  return fetch("https://" + CFG.cloudServer + "/v2/" + endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
-  }).then(function(r) { return r.json(); });
-}
+initSchedule();
 
 // =========================================================================
 // STATUS
 // =========================================================================
-var lastTemp = null;
-var lastRelayState = null;
-
 function refreshStatus() {
-  if (!CFG.cloudServer || !CFG.authKey || !CFG.devicePro) {
+  if (!CFG.workerUrl || !CFG.apiKey) {
     ["st-temp","st-relay","st-power","st-target"].forEach(function(id) {
       document.getElementById(id).textContent = "Config!";
       document.getElementById(id).className = "value err";
@@ -494,46 +462,67 @@ function refreshStatus() {
   var spinner = document.getElementById("statusSpinner");
   spinner.style.display = "inline-block";
 
-  var ids = [CFG.devicePro];
-  if (CFG.deviceHT) ids.push(CFG.deviceHT);
-
-  return cloudV2("devices/api/get", { ids: ids, select: ["status"] }).then(function(data) {
-    if (!data || !data.length) throw new Error("Pas de donnees");
-
-    // Pro 1PM
-    var pro = data.find(function(d) { return d.id === CFG.devicePro; });
-    if (pro && pro.online) {
-      var sw = pro.status && pro.status["switch:0"];
-      if (sw) {
-        lastRelayState = sw.output;
-        var relEl = document.getElementById("st-relay");
-        relEl.textContent = sw.output ? "ON" : "OFF";
-        relEl.className = "value " + (sw.output ? "on" : "off");
-        document.getElementById("relayToggle").checked = !!sw.output;
-        document.getElementById("st-power").textContent =
-          sw.apower !== undefined ? sw.apower.toFixed(0) + " W" : "-- W";
+  return api("GET", "/api/status").then(function(data) {
+    // Update config from server
+    if (data.config) {
+      config.enabled = !!data.config.enabled;
+      config.tempTarget = data.config.tempTarget || 18;
+      config.tempHyst = data.config.tempHyst || 1;
+      if (data.config.schedule && data.config.schedule.length === 7) {
+        config.schedule = data.config.schedule;
       }
-    } else if (pro) {
-      document.getElementById("st-relay").textContent = "HORS LIGNE";
-      document.getElementById("st-relay").className = "value err";
+
+      // Update UI controls
+      document.getElementById("enableToggle").checked = config.enabled;
+      document.getElementById("tempTarget").value = config.tempTarget;
+      document.getElementById("tempTargetVal").textContent = config.tempTarget + " °C";
+      document.getElementById("tempHyst").value = config.tempHyst;
+      document.getElementById("tempHystVal").textContent = config.tempHyst + " °C";
+      document.getElementById("st-target").textContent = config.tempTarget + " °C";
+      document.getElementById("st-target").className = "value";
+      updateThermoIndicator();
+      updateGrid();
     }
 
-    // H&T
-    var ht = data.find(function(d) { return d.id === CFG.deviceHT; });
-    if (ht && ht.status && ht.status["temperature:0"]) {
-      lastTemp = ht.status["temperature:0"].tC;
-      document.getElementById("st-temp").textContent = lastTemp.toFixed(1) + " °C";
-      document.getElementById("st-temp").className = "value";
-    } else {
-      document.getElementById("st-temp").textContent = "-- °C";
+    // Update device status
+    var st = data.status;
+    if (st) {
+      // Temperature
+      if (st.temp !== null && st.temp !== undefined) {
+        document.getElementById("st-temp").textContent = st.temp.toFixed(1) + " °C";
+        document.getElementById("st-temp").className = "value";
+      } else {
+        document.getElementById("st-temp").textContent = "-- °C";
+        document.getElementById("st-temp").className = "value";
+      }
+
+      // Relay
+      if (st.online) {
+        var relEl = document.getElementById("st-relay");
+        relEl.textContent = st.relay ? "ON" : "OFF";
+        relEl.className = "value " + (st.relay ? "on" : "off");
+        document.getElementById("relayToggle").checked = !!st.relay;
+      } else {
+        document.getElementById("st-relay").textContent = "HORS LIGNE";
+        document.getElementById("st-relay").className = "value err";
+      }
+
+      // Power
+      if (st.power !== null && st.power !== undefined) {
+        document.getElementById("st-power").textContent = st.power.toFixed(0) + " W";
+      } else {
+        document.getElementById("st-power").textContent = "-- W";
+      }
+
+      // Last update
+      if (st.updatedAt) {
+        var d = new Date(st.updatedAt);
+        document.getElementById("statusUpdate").textContent =
+          "Derniere maj : " + d.toLocaleString("fr-FR");
+      }
     }
-
-    // Target display
-    document.getElementById("st-target").textContent = thermoState.tempTarget + " °C";
-    document.getElementById("st-target").className = "value";
-
   }).catch(function(e) {
-    log("Erreur Cloud : " + e.message);
+    clientLog("Erreur : " + e.message);
     document.getElementById("st-relay").textContent = "ERR";
     document.getElementById("st-relay").className = "value err";
   }).finally(function() {
@@ -542,115 +531,78 @@ function refreshStatus() {
 }
 
 // =========================================================================
-// RELAY CONTROL
+// FORCE REFRESH (re-queries Shelly Cloud)
 // =========================================================================
-function setRelay(on) {
-  return cloudV1("device/relay/control",
-    "id=" + CFG.devicePro + "&channel=0&turn=" + (on ? "on" : "off")
-  ).then(function(data) {
-    if (!data.isok) throw new Error(JSON.stringify(data.errors));
-    return data;
+function forceRefresh() {
+  return api("POST", "/api/refresh").then(function() {
+    return refreshStatus();
   });
 }
 
+// =========================================================================
+// RELAY CONTROL
+// =========================================================================
 function toggleRelay() {
   var on = document.getElementById("relayToggle").checked;
-  // Manual toggle disables thermostat
-  if (thermoState.enabled) {
-    thermoState.enabled = false;
-    saveThermoState();
+  api("POST", "/api/relay", { on: on }).then(function() {
+    clientLog("Relais " + (on ? "ON" : "OFF") + " (manuel) — thermostat desactive");
+    // Server disables thermostat on manual control
+    config.enabled = false;
     document.getElementById("enableToggle").checked = false;
     updateThermoIndicator();
-    log("Thermostat desactive (commande manuelle)");
-  }
-  setRelay(on).then(function() {
-    log("Relais " + (on ? "ON" : "OFF") + " (manuel)");
     setTimeout(refreshStatus, 2000);
-  }).catch(function(e) { log("Erreur relais : " + e.message); });
+  }).catch(function(e) {
+    clientLog("Erreur relais : " + e.message);
+    document.getElementById("relayToggle").checked = !on;
+  });
 }
 
 function toggleThermostat() {
-  thermoState.enabled = document.getElementById("enableToggle").checked;
-  saveThermoState();
-  updateThermoIndicator();
-  if (thermoState.enabled) {
-    log("Thermostat active (cible " + thermoState.tempTarget + " °C)");
-    runThermostatCheck();
-  } else {
-    log("Thermostat desactive");
-  }
-}
-
-// =========================================================================
-// THERMOSTAT ENGINE (runs in browser)
-// =========================================================================
-var thermoTimer = null;
-var THERMO_INTERVAL = 60000; // 60s
-
-function startThermostat() {
-  if (thermoTimer) clearInterval(thermoTimer);
-  thermoTimer = setInterval(function() {
-    refreshStatus().then(function() {
-      if (thermoState.enabled) runThermostatCheck();
-    });
-  }, THERMO_INTERVAL);
-}
-
-function stopThermostat() {
-  if (thermoTimer) { clearInterval(thermoTimer); thermoTimer = null; }
-}
-
-function runThermostatCheck() {
-  if (!thermoState.enabled) return;
-  if (lastTemp === null) { log("Thermostat: pas de temperature disponible"); return; }
-
-  var now = new Date();
-  var dayIndex = now.getDay(); // 0=dim
-  // Map to our array: 0=lun ... 6=dim
-  var ourDay = dayIndex === 0 ? 6 : dayIndex - 1;
-  var slot = now.getHours() * 2 + (now.getMinutes() >= 30 ? 1 : 0);
-  var inSchedule = thermoState.schedule[ourDay] && thermoState.schedule[ourDay][slot];
-
-  var target = thermoState.tempTarget;
-  var hyst = thermoState.tempHyst;
-
-  if (!inSchedule) {
-    if (lastRelayState === true) {
-      setRelay(false).then(function() {
-        log("Hors plage horaire -> OFF");
-      }).catch(function(e) { log("Erreur: " + e.message); });
-    }
-    return;
-  }
-
-  // In schedule: check temperature
-  if (lastTemp < target) {
-    if (lastRelayState !== true) {
-      setRelay(true).then(function() {
-        log(lastTemp.toFixed(1) + " °C < " + target + " °C -> ON");
-      }).catch(function(e) { log("Erreur: " + e.message); });
-    }
-  } else if (lastTemp >= target + hyst) {
-    if (lastRelayState !== false) {
-      setRelay(false).then(function() {
-        log(lastTemp.toFixed(1) + " °C >= " + (target + hyst) + " °C -> OFF");
-      }).catch(function(e) { log("Erreur: " + e.message); });
-    }
-  } else {
-    // In hysteresis band, no change
-  }
+  var enabled = document.getElementById("enableToggle").checked;
+  config.enabled = enabled;
+  api("POST", "/api/config", { enabled: enabled }).then(function() {
+    clientLog("Thermostat " + (enabled ? "active" : "desactive"));
+    updateThermoIndicator();
+  }).catch(function(e) {
+    clientLog("Erreur : " + e.message);
+    config.enabled = !enabled;
+    document.getElementById("enableToggle").checked = !enabled;
+    updateThermoIndicator();
+  });
 }
 
 function updateThermoIndicator() {
   var el = document.getElementById("thermoIndicator");
   var label = document.getElementById("thermoLabel");
-  if (thermoState.enabled) {
+  if (config.enabled) {
     el.className = "thermo-status active";
     label.textContent = "Thermostat actif";
   } else {
     el.className = "thermo-status inactive";
     label.textContent = "Thermostat arrete";
   }
+}
+
+// =========================================================================
+// SAVE CONFIG (temp + schedule + enabled → Worker)
+// =========================================================================
+function saveConfig() {
+  var payload = {
+    enabled: config.enabled,
+    tempTarget: parseFloat(document.getElementById("tempTarget").value),
+    tempHyst: parseFloat(document.getElementById("tempHyst").value),
+    schedule: config.schedule
+  };
+  api("POST", "/api/config", payload).then(function(data) {
+    if (data.config) {
+      config = data.config;
+      document.getElementById("st-target").textContent = config.tempTarget + " °C";
+    }
+    clientLog("Configuration sauvegardee sur le serveur");
+    updateThermoIndicator();
+  }).catch(function(e) {
+    clientLog("Erreur sauvegarde : " + e.message);
+  });
 }
 
 // =========================================================================
@@ -665,6 +617,7 @@ function switchTab(name) {
   document.querySelectorAll(".desktop-tabs button").forEach(function(btn, i) {
     btn.classList.toggle("active", ["status","schedule","log"][i] === name);
   });
+  if (name === "log") loadLogs();
 }
 
 // =========================================================================
@@ -700,7 +653,7 @@ function buildGrid() {
     tr.appendChild(dayTd);
     for (var s = 0; s < 48; s++) {
       var td = document.createElement("td");
-      td.className = "slot" + (thermoState.schedule[d][s] ? " active" : "");
+      td.className = "slot" + (config.schedule[d] && config.schedule[d][s] ? " active" : "");
       td.dataset.day = d;
       td.dataset.slot = s;
       td.addEventListener("mousedown", onSlotDown);
@@ -718,20 +671,27 @@ function buildGrid() {
   document.addEventListener("touchend", function() { isDragging = false; });
 }
 
+function updateGrid() {
+  document.querySelectorAll("td.slot").forEach(function(td) {
+    var d = parseInt(td.dataset.day), s = parseInt(td.dataset.slot);
+    td.classList.toggle("active", !!(config.schedule[d] && config.schedule[d][s]));
+  });
+}
+
 function toggleSlot(td) {
   var d = parseInt(td.dataset.day), s = parseInt(td.dataset.slot);
-  thermoState.schedule[d][s] = dragValue;
+  config.schedule[d][s] = dragValue;
   td.classList.toggle("active", dragValue);
 }
 function onSlotDown(e) {
   e.preventDefault(); isDragging = true;
-  dragValue = !thermoState.schedule[parseInt(this.dataset.day)][parseInt(this.dataset.slot)];
+  dragValue = !config.schedule[parseInt(this.dataset.day)][parseInt(this.dataset.slot)];
   toggleSlot(this);
 }
 function onSlotEnter() { if (isDragging) toggleSlot(this); }
 function onTouchStart(e) {
   e.preventDefault(); isDragging = true;
-  dragValue = !thermoState.schedule[parseInt(this.dataset.day)][parseInt(this.dataset.slot)];
+  dragValue = !config.schedule[parseInt(this.dataset.day)][parseInt(this.dataset.slot)];
   toggleSlot(this);
 }
 function onTouchMove(e) {
@@ -740,43 +700,68 @@ function onTouchMove(e) {
   if (el && el.classList.contains("slot") && isDragging) toggleSlot(el);
 }
 
-function saveSchedule() {
-  saveThermoState();
-  log("Horaires sauvegardes");
-}
-
 function clearAll() {
-  for (var d = 0; d < 7; d++) for (var s = 0; s < 48; s++) thermoState.schedule[d][s] = false;
+  for (var d = 0; d < 7; d++) for (var s = 0; s < 48; s++) config.schedule[d][s] = false;
   document.querySelectorAll("td.slot").forEach(function(td) { td.classList.remove("active"); });
-  log("Horaires effaces");
+  clientLog("Horaires effaces (cliquer Sauvegarder pour appliquer)");
 }
 
 // =========================================================================
-// SLIDERS
+// SLIDERS (local UI update only — saved on "Appliquer")
 // =========================================================================
 document.getElementById("tempTarget").addEventListener("input", function() {
   document.getElementById("tempTargetVal").textContent = this.value + " °C";
-  thermoState.tempTarget = parseFloat(this.value);
   document.getElementById("st-target").textContent = this.value + " °C";
-  saveThermoState();
 });
 document.getElementById("tempHyst").addEventListener("input", function() {
   document.getElementById("tempHystVal").textContent = this.value + " °C";
-  thermoState.tempHyst = parseFloat(this.value);
-  saveThermoState();
 });
 
 // =========================================================================
-// LOG
+// LOG (server-side + client-side)
 // =========================================================================
-function log(msg) {
+function clientLog(msg) {
   var el = document.getElementById("log");
   var line = document.createElement("div");
   var t = new Date();
   line.textContent = t.toLocaleTimeString("fr-FR") + " " + msg;
   el.appendChild(line);
   el.scrollTop = el.scrollHeight;
-  while (el.children.length > 100) el.removeChild(el.firstChild);
+  while (el.children.length > 200) el.removeChild(el.firstChild);
+}
+
+function loadLogs() {
+  var spinner = document.getElementById("logSpinner");
+  spinner.style.display = "inline-block";
+  api("GET", "/api/log").then(function(data) {
+    var el = document.getElementById("log");
+    el.innerHTML = "";
+    if (data.logs && data.logs.length) {
+      data.logs.forEach(function(entry) {
+        var line = document.createElement("div");
+        var d = new Date(entry.ts);
+        line.textContent = d.toLocaleString("fr-FR") + " " + entry.msg;
+        el.appendChild(line);
+      });
+      el.scrollTop = el.scrollHeight;
+    } else {
+      el.innerHTML = "<div>Aucune entree</div>";
+    }
+  }).catch(function(e) {
+    clientLog("Erreur chargement journal : " + e.message);
+  }).finally(function() {
+    spinner.style.display = "none";
+  });
+}
+
+// =========================================================================
+// AUTO-REFRESH
+// =========================================================================
+var refreshTimer = null;
+
+function startAutoRefresh() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(refreshStatus, 60000);
 }
 
 // =========================================================================
@@ -786,22 +771,10 @@ function showApp() {
   document.getElementById("loginScreen").style.display = "none";
   document.getElementById("appScreen").style.display = "block";
   loadSettings();
-  loadThermoState();
-
-  // Restore UI state
-  document.getElementById("enableToggle").checked = thermoState.enabled;
-  document.getElementById("tempTarget").value = thermoState.tempTarget;
-  document.getElementById("tempTargetVal").textContent = thermoState.tempTarget + " °C";
-  document.getElementById("tempHyst").value = thermoState.tempHyst;
-  document.getElementById("tempHystVal").textContent = thermoState.tempHyst + " °C";
-  updateThermoIndicator();
-
   buildGrid();
-  refreshStatus().then(function() {
-    if (thermoState.enabled) runThermostatCheck();
-  });
-  startThermostat();
-  log("Session demarree");
+  refreshStatus();
+  startAutoRefresh();
+  clientLog("Session demarree");
 }
 
 // Auto-login if session exists
