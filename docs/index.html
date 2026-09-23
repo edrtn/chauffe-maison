@@ -87,21 +87,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
 .temp-row input[type=range]{flex:1;min-width:80px;accent-color:var(--accent)}
 .temp-row .temp-val{font-size:1rem;font-weight:700;min-width:55px;text-align:right}
 
-/* ===== SCHEDULE GRID ===== */
-.grid-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px;margin:0 -4px}
-table.schedule{border-collapse:collapse;width:100%;min-width:560px}
-table.schedule th,table.schedule td{border:1px solid var(--grid-border);text-align:center;
-  padding:0;font-size:.55rem;user-select:none;-webkit-user-select:none}
-table.schedule th{padding:3px 1px;background:var(--surface2);color:var(--text2);
-  position:sticky;top:0;z-index:1}
-table.schedule th.day-label{width:36px;min-width:36px;position:sticky;left:0;z-index:2;background:var(--surface2)}
-table.schedule td.day-label{width:36px;min-width:36px;font-weight:700;font-size:.7rem;
-  background:var(--surface2);position:sticky;left:0;z-index:1}
-table.schedule td.slot{width:12px;min-width:12px;height:32px;cursor:pointer;
-  transition:background .1s;touch-action:none}
-table.schedule td.slot.active{background:var(--on)}
-table.schedule td.slot:not(.active){background:var(--off)}
-table.schedule td.slot:hover{opacity:.7}
+/* ===== SCHEDULE DAYS ===== */
+.day-block{margin-bottom:12px;border-bottom:1px solid var(--surface2);padding-bottom:12px}
+.day-block:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+.day-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.day-name{font-weight:700;font-size:.95rem}
+.day-empty{font-size:.75rem;color:var(--text2);font-style:italic}
+.range-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+.range-row input[type=time]{padding:8px 10px;border-radius:8px;border:1px solid var(--grid-border);
+  background:var(--surface2);color:var(--text);font-size:.9rem;outline:none;
+  -webkit-appearance:none;min-width:100px}
+.range-row input[type=time]:focus{border-color:var(--accent)}
+.range-arrow{color:var(--text2);font-size:.85rem;flex-shrink:0}
+.range-del{background:none;border:none;color:var(--danger);font-size:1.2rem;
+  cursor:pointer;padding:4px 8px;border-radius:6px;line-height:1;flex-shrink:0}
+.range-del:hover{background:rgba(231,76,60,.15)}
+.add-range{background:none;border:1px dashed var(--grid-border);color:var(--accent2);
+  font-size:.8rem;padding:8px 14px;border-radius:8px;cursor:pointer;width:100%;
+  transition:border-color .2s,background .2s}
+.add-range:hover{border-color:var(--accent);background:rgba(233,69,96,.08)}
+.copy-row{display:flex;align-items:center;gap:8px;margin-top:14px;flex-wrap:wrap}
+.copy-row span{font-size:.75rem;color:var(--text2)}
 
 /* ===== BUTTONS ===== */
 button,.btn{padding:10px 18px;border:none;border-radius:8px;font-size:.85rem;font-weight:600;
@@ -275,13 +281,18 @@ button,.btn{padding:10px 18px;border:none;border-radius:8px;font-size:.85rem;fon
   <div class="tab-section" id="tab-schedule">
     <div class="card">
       <h2>Plages horaires</h2>
-      <p style="font-size:.75rem;color:var(--text2);margin-bottom:10px">
-        Clique ou glisse pour activer des creneaux de 30 min. Le serveur declenche le chauffage pendant ces plages si la temperature est inferieure a la cible.
+      <p style="font-size:.75rem;color:var(--text2);margin-bottom:14px">
+        Ajoute des plages pour chaque jour. Le chauffage se declenche pendant ces heures si la temperature est sous la cible.
       </p>
-      <div class="grid-wrap" id="gridWrap"></div>
+      <div id="scheduleContainer"></div>
+      <div class="copy-row">
+        <span>Copier Lundi vers :</span>
+        <button class="btn btn-secondary btn-sm" onclick="copyDay(0,'week')">Semaine</button>
+        <button class="btn btn-secondary btn-sm" onclick="copyDay(0,'all')">Tous</button>
+      </div>
       <div class="btn-group">
         <button class="btn btn-primary" onclick="saveConfig()">Sauvegarder</button>
-        <button class="btn btn-secondary" onclick="clearAll()">Tout effacer</button>
+        <button class="btn btn-secondary" onclick="clearAllRanges()">Tout effacer</button>
       </div>
     </div>
   </div>
@@ -481,7 +492,8 @@ function refreshStatus() {
       document.getElementById("st-target").textContent = config.tempTarget + " °C";
       document.getElementById("st-target").className = "value";
       updateThermoIndicator();
-      updateGrid();
+      ranges = scheduleToRanges(config.schedule);
+      buildScheduleUI();
     }
 
     // Update device status
@@ -587,6 +599,7 @@ function updateThermoIndicator() {
 // SAVE CONFIG (temp + schedule + enabled → Worker)
 // =========================================================================
 function saveConfig() {
+  config.schedule = rangesToSchedule(ranges);
   var payload = {
     enabled: config.enabled,
     tempTarget: parseFloat(document.getElementById("tempTarget").value),
@@ -596,6 +609,7 @@ function saveConfig() {
   api("POST", "/api/config", payload).then(function(data) {
     if (data.config) {
       config = data.config;
+      ranges = scheduleToRanges(config.schedule);
       document.getElementById("st-target").textContent = config.tempTarget + " °C";
     }
     clientLog("Configuration sauvegardee sur le serveur");
@@ -621,88 +635,167 @@ function switchTab(name) {
 }
 
 // =========================================================================
-// SCHEDULE GRID
+// SCHEDULE — TIME RANGES PER DAY
 // =========================================================================
-var DAYS_LABELS = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
-var isDragging = false, dragValue = false;
+var DAYS_LABELS = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"];
 
-function buildGrid() {
-  var wrap = document.getElementById("gridWrap");
-  var table = document.createElement("table");
-  table.className = "schedule";
-  var thead = document.createElement("thead");
-  var hrow = document.createElement("tr");
-  var corner = document.createElement("th");
-  corner.className = "day-label";
-  hrow.appendChild(corner);
-  for (var h = 0; h < 24; h++) {
-    var th = document.createElement("th");
-    th.colSpan = 2;
-    th.textContent = h.toString().padStart(2, "0");
-    hrow.appendChild(th);
-  }
-  thead.appendChild(hrow);
-  table.appendChild(thead);
+// ranges[day] = [{start:"06:00", end:"08:00"}, ...]
+var ranges = [];
+function initRanges() { ranges = []; for (var i = 0; i < 7; i++) ranges.push([]); }
+initRanges();
 
-  var tbody = document.createElement("tbody");
+// Convert 7x48 boolean schedule → ranges
+function scheduleToRanges(sched) {
+  var r = [];
   for (var d = 0; d < 7; d++) {
-    var tr = document.createElement("tr");
-    var dayTd = document.createElement("td");
-    dayTd.className = "day-label";
-    dayTd.textContent = DAYS_LABELS[d];
-    tr.appendChild(dayTd);
+    r[d] = [];
+    if (!sched[d]) continue;
+    var inRange = false, startSlot = 0;
     for (var s = 0; s < 48; s++) {
-      var td = document.createElement("td");
-      td.className = "slot" + (config.schedule[d] && config.schedule[d][s] ? " active" : "");
-      td.dataset.day = d;
-      td.dataset.slot = s;
-      td.addEventListener("mousedown", onSlotDown);
-      td.addEventListener("mouseenter", onSlotEnter);
-      td.addEventListener("touchstart", onTouchStart, { passive: false });
-      td.addEventListener("touchmove", onTouchMove, { passive: false });
-      tr.appendChild(td);
+      if (sched[d][s] && !inRange) { inRange = true; startSlot = s; }
+      if ((!sched[d][s] || s === 47) && inRange) {
+        var endSlot = sched[d][s] ? s + 1 : s;
+        r[d].push({ start: slotToTime(startSlot), end: slotToTime(endSlot) });
+        inRange = false;
+      }
     }
-    tbody.appendChild(tr);
   }
-  table.appendChild(tbody);
-  wrap.innerHTML = "";
-  wrap.appendChild(table);
-  document.addEventListener("mouseup", function() { isDragging = false; });
-  document.addEventListener("touchend", function() { isDragging = false; });
+  return r;
 }
 
-function updateGrid() {
-  document.querySelectorAll("td.slot").forEach(function(td) {
-    var d = parseInt(td.dataset.day), s = parseInt(td.dataset.slot);
-    td.classList.toggle("active", !!(config.schedule[d] && config.schedule[d][s]));
+// Convert ranges → 7x48 boolean schedule
+function rangesToSchedule(r) {
+  var sched = [];
+  for (var d = 0; d < 7; d++) {
+    sched[d] = [];
+    for (var s = 0; s < 48; s++) sched[d][s] = false;
+    if (!r[d]) continue;
+    for (var i = 0; i < r[d].length; i++) {
+      var s1 = timeToSlot(r[d][i].start);
+      var s2 = timeToSlot(r[d][i].end);
+      if (s2 <= s1) s2 = 48; // handle end=00:00 or same
+      for (var s = s1; s < s2 && s < 48; s++) sched[d][s] = true;
+    }
+  }
+  return sched;
+}
+
+function slotToTime(s) {
+  var h = Math.floor(s / 2);
+  var m = (s % 2) * 30;
+  return h.toString().padStart(2, "0") + ":" + m.toString().padStart(2, "0");
+}
+
+function timeToSlot(t) {
+  var parts = t.split(":");
+  var h = parseInt(parts[0]), m = parseInt(parts[1]);
+  return h * 2 + (m >= 30 ? 1 : 0);
+}
+
+function buildScheduleUI() {
+  var container = document.getElementById("scheduleContainer");
+  container.innerHTML = "";
+  for (var d = 0; d < 7; d++) {
+    var block = document.createElement("div");
+    block.className = "day-block";
+    block.dataset.day = d;
+
+    var header = document.createElement("div");
+    header.className = "day-header";
+    header.innerHTML = '<span class="day-name">' + DAYS_LABELS[d] + '</span>';
+    block.appendChild(header);
+
+    var dayRanges = ranges[d] || [];
+    if (dayRanges.length === 0) {
+      var empty = document.createElement("div");
+      empty.className = "day-empty";
+      empty.textContent = "Aucune plage";
+      block.appendChild(empty);
+    } else {
+      for (var i = 0; i < dayRanges.length; i++) {
+        block.appendChild(createRangeRow(d, i, dayRanges[i]));
+      }
+    }
+
+    var addBtn = document.createElement("button");
+    addBtn.className = "add-range";
+    addBtn.textContent = "+ Ajouter une plage";
+    addBtn.dataset.day = d;
+    addBtn.addEventListener("click", function() {
+      var day = parseInt(this.dataset.day);
+      ranges[day].push({ start: "06:00", end: "08:00" });
+      buildScheduleUI();
+    });
+    block.appendChild(addBtn);
+
+    container.appendChild(block);
+  }
+}
+
+function createRangeRow(day, idx, range) {
+  var row = document.createElement("div");
+  row.className = "range-row";
+
+  var startInput = document.createElement("input");
+  startInput.type = "time";
+  startInput.value = range.start;
+  startInput.step = "1800";
+  startInput.dataset.day = day;
+  startInput.dataset.idx = idx;
+  startInput.dataset.field = "start";
+  startInput.addEventListener("change", onRangeChange);
+
+  var arrow = document.createElement("span");
+  arrow.className = "range-arrow";
+  arrow.textContent = "\u2192";
+
+  var endInput = document.createElement("input");
+  endInput.type = "time";
+  endInput.value = range.end;
+  endInput.step = "1800";
+  endInput.dataset.day = day;
+  endInput.dataset.idx = idx;
+  endInput.dataset.field = "end";
+  endInput.addEventListener("change", onRangeChange);
+
+  var delBtn = document.createElement("button");
+  delBtn.className = "range-del";
+  delBtn.innerHTML = "&times;";
+  delBtn.dataset.day = day;
+  delBtn.dataset.idx = idx;
+  delBtn.addEventListener("click", function() {
+    var d = parseInt(this.dataset.day), i = parseInt(this.dataset.idx);
+    ranges[d].splice(i, 1);
+    buildScheduleUI();
   });
+
+  row.appendChild(startInput);
+  row.appendChild(arrow);
+  row.appendChild(endInput);
+  row.appendChild(delBtn);
+  return row;
 }
 
-function toggleSlot(td) {
-  var d = parseInt(td.dataset.day), s = parseInt(td.dataset.slot);
-  config.schedule[d][s] = dragValue;
-  td.classList.toggle("active", dragValue);
-}
-function onSlotDown(e) {
-  e.preventDefault(); isDragging = true;
-  dragValue = !config.schedule[parseInt(this.dataset.day)][parseInt(this.dataset.slot)];
-  toggleSlot(this);
-}
-function onSlotEnter() { if (isDragging) toggleSlot(this); }
-function onTouchStart(e) {
-  e.preventDefault(); isDragging = true;
-  dragValue = !config.schedule[parseInt(this.dataset.day)][parseInt(this.dataset.slot)];
-  toggleSlot(this);
-}
-function onTouchMove(e) {
-  e.preventDefault();
-  var el = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
-  if (el && el.classList.contains("slot") && isDragging) toggleSlot(el);
+function onRangeChange() {
+  var d = parseInt(this.dataset.day);
+  var i = parseInt(this.dataset.idx);
+  ranges[d][i][this.dataset.field] = this.value;
 }
 
-function clearAll() {
-  for (var d = 0; d < 7; d++) for (var s = 0; s < 48; s++) config.schedule[d][s] = false;
-  document.querySelectorAll("td.slot").forEach(function(td) { td.classList.remove("active"); });
+function copyDay(fromDay, target) {
+  var src = JSON.parse(JSON.stringify(ranges[fromDay]));
+  if (target === "week") {
+    for (var d = 0; d < 5; d++) ranges[d] = JSON.parse(JSON.stringify(src));
+  } else {
+    for (var d = 0; d < 7; d++) ranges[d] = JSON.parse(JSON.stringify(src));
+  }
+  buildScheduleUI();
+  clientLog("Plages copiees depuis " + DAYS_LABELS[fromDay]);
+}
+
+function clearAllRanges() {
+  initRanges();
+  buildScheduleUI();
   clientLog("Horaires effaces (cliquer Sauvegarder pour appliquer)");
 }
 
@@ -771,7 +864,7 @@ function showApp() {
   document.getElementById("loginScreen").style.display = "none";
   document.getElementById("appScreen").style.display = "block";
   loadSettings();
-  buildGrid();
+  buildScheduleUI();
   refreshStatus();
   startAutoRefresh();
   clientLog("Session demarree");
