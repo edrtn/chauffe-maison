@@ -629,10 +629,16 @@ function refreshStatusLocal() {
 
 function refreshStatusCloud() {
   if (!CFG.cloudServer || !CFG.authKey || !CFG.devicePro) {
-    document.getElementById("st-temp").textContent = "Config!";
-    document.getElementById("st-temp").className = "value err";
+    ["st-temp","st-relay","st-power","st-enabled"].forEach(function(id) {
+      document.getElementById(id).textContent = "Config!";
+      document.getElementById(id).className = "value err";
+    });
     return Promise.resolve();
   }
+
+  // Reset display before fetching
+  document.getElementById("st-temp").textContent = "...";
+  document.getElementById("st-temp").className = "value";
 
   // Fetch Pro 1PM + H&T in one call
   var ids = [CFG.devicePro];
@@ -666,8 +672,16 @@ function refreshStatusCloud() {
       var temp = ht.status["temperature:0"];
       if (temp && temp.tC !== undefined) {
         document.getElementById("st-temp").textContent = temp.tC.toFixed(1) + " °C";
+      } else {
+        document.getElementById("st-temp").textContent = "-- °C";
       }
+    } else {
+      document.getElementById("st-temp").textContent = "-- °C";
     }
+
+    // Systeme (KVS not accessible via cloud)
+    document.getElementById("st-enabled").textContent = "N/A";
+    document.getElementById("st-enabled").className = "value";
   }).catch(function(e) {
     log("Erreur Cloud : " + e.message);
     document.getElementById("st-relay").textContent = "ERR";
